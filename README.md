@@ -124,6 +124,44 @@ readout is anchored to the target marker, so every extra line pushes it further
 across the glass — and with several targets selected there are several markers
 competing for the same space.
 
+## Contact readouts
+
+### Contact labels
+
+Ground units are told apart at a glance because their icons differ — a tank does
+not look like a radar. Every aircraft draws the same triangle, so the only way to
+find out what is out there is to select a contact and read the target block, one
+contact at a time.
+
+This writes the type code beside each aircraft marker:
+
+```
+        ▽ KR-67  12.4km
+                     ▽ FS-12  18km
+   ▽ EW-25  22km
+```
+
+A four-ship now reads as four airframes without touching the target list — and
+the AWACS orbiting behind them stops looking like a fighter.
+
+| Key | Default | Effect |
+| --- | --- | --- |
+| `ContactLabels` | `true` | The labels. |
+| `LabelFriendlyAircraft` | `false` | Label your own faction too. |
+| `LabelRange` | `true` | Range after the type code. |
+| `LabelMaxRange` | `25000` | Metres. Further out keeps the marker, drops the text. `0` for no limit. |
+| `LabelTextScale` | `0.6` | Size relative to your HUD text. |
+
+The code is the same `definition.code` the game's own target block prints, and
+nothing here reveals a contact the game had already decided not to draw: the
+marker was on the glass either way, this only says what it is. The selected
+target gets no label, because the game is already annotating that one.
+
+Labels inherit their marker's colour, so they dim with a stale track and flicker
+under jamming exactly as the icon does. They are anchored to the markers rather
+than to a place on the glass, so the layout table below does not reach them —
+`LabelTextScale` is their only size control.
+
 ## Flight readouts
 
 ### Fuel time
@@ -193,7 +231,9 @@ game's 30 HUD elements can be placed this way; `ArtificialHorizon` and
 route through the shared settings refresh this hooks.
 
 This plugin's readouts register under `MissileBanner`, `ImpactCountdown`,
-`RadarWarnings`, `ShootCue` and `TargetData`.
+`RadarWarnings`, `ShootCue` and `TargetData`. The contact labels do not: they
+follow their markers around the glass rather than sitting anywhere fixed, so
+they have their own `LabelTextScale` instead.
 
 #### The climb rate default
 
@@ -219,6 +259,11 @@ Every feature has its own switch in
 | Weapons | `ShootCue` | `true` |
 | Weapons | `ShootCueOverlay` | `false` |
 | Weapons | `TargetDataBlock` | `true` |
+| Contacts | `ContactLabels` | `true` |
+| Contacts | `LabelFriendlyAircraft` | `false` |
+| Contacts | `LabelRange` | `true` |
+| Contacts | `LabelMaxRange` | `25000` |
+| Contacts | `LabelTextScale` | `0.6` |
 | Flight | `FuelTimeReadout` | `true` |
 | Flight | `FuelTimeUpdateRate` | `10` |
 | Layout | `Enabled` | `true` |

@@ -26,6 +26,13 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> ShootCueOverlay;
     internal static ConfigEntry<bool> TargetDataBlock;
 
+    // Contact readouts
+    internal static ConfigEntry<bool> ContactLabels;
+    internal static ConfigEntry<bool> ContactLabelFriendlies;
+    internal static ConfigEntry<bool> ContactLabelRange;
+    internal static ConfigEntry<float> ContactLabelMaxRange;
+    internal static ConfigEntry<float> ContactLabelScale;
+
     // Flight readouts
     internal static ConfigEntry<bool> FuelTimeReadout;
     internal static ConfigEntry<float> FuelTimeUpdateRate;
@@ -103,6 +110,32 @@ public class Plugin : BaseUnityPlugin
         TargetDataBlock = Config.Bind(
             "Weapons", "TargetDataBlock", true,
             "Add closure, aspect and altitude to the selected target readout.");
+
+        ContactLabels = Config.Bind(
+            "Contacts", "ContactLabels", true,
+            "Write each aircraft's type code beside its HUD marker. Ground units "
+            + "have icons that differ; every aircraft draws the same triangle, so "
+            + "without this the only way to tell a bomber from a fighter is to "
+            + "select it and read the target block.");
+        ContactLabelFriendlies = Config.Bind(
+            "Contacts", "LabelFriendlyAircraft", false,
+            "Also label aircraft of your own faction. Off by default: friendlies "
+            + "are already a different colour, and in a busy sky they are most of "
+            + "the clutter.");
+        ContactLabelRange = Config.Bind(
+            "Contacts", "LabelRange", true,
+            "Include the range to the contact after the type code.");
+        ContactLabelMaxRange = Config.Bind(
+            "Contacts", "LabelMaxRange", 25000f,
+            "Metres. Contacts further out than this keep their marker but lose "
+            + "the label, so a busy radar picture does not fill the glass with "
+            + "text. 0 removes the limit.");
+        ContactLabelScale = Config.Bind(
+            "Contacts", "LabelTextScale", 0.6f,
+            "Label size relative to your HUD text size. The labels are anchored "
+            + "to the markers rather than to a fixed place on the glass, so the "
+            + "layout table below does not apply to them; this is the only size "
+            + "control they have.");
 
         FuelTimeReadout = Config.Bind(
             "Flight", "FuelTimeReadout", true,

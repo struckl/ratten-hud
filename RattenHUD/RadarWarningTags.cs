@@ -133,7 +133,7 @@ internal static class RadarWarningTags
                    // ragged pseudo-columns rather than aligned ones.
                    .Append(tag)
                    .Append(' ')
-                   .Append(EmitterName(contact.Emitter))
+                   .Append(UnitNaming.TypeCode(contact.Emitter))
                    .Append("</color>");
         }
 
@@ -161,17 +161,6 @@ internal static class RadarWarningTags
                 return true;
         }
         return false;
-    }
-
-    private static string EmitterName(Unit emitter)
-    {
-        if (emitter == null)
-            return "UNKNOWN";
-        // definition.code is the short type code the game already uses for the
-        // selected target readout, e.g. the airframe or SAM designation.
-        return emitter.definition != null && !string.IsNullOrEmpty(emitter.definition.code)
-            ? emitter.definition.code
-            : emitter.name;
     }
 
     private static void Clear()
