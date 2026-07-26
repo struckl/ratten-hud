@@ -28,7 +28,7 @@ internal static class ShootCue
     /// </summary>
     private const float StaleAfterSeconds = 0.35f;
 
-    private static Text readout;
+    private static bool registered;
     private static float lastRefresh = float.NegativeInfinity;
 
     // The game's own hint label, kept so a stale cue can hand it back rather
@@ -44,16 +44,19 @@ internal static class ShootCue
         if (!Plugin.ShootCue.Value || !Plugin.ShootCueOverlay.Value)
             return;
 
-        readout = Overlay.CreateText(
+        Overlay.Register(
             ElementLayout.Elements.ShootCue,
             anchor: new Vector2(0.5f, 0.5f),
             offset: new Vector2(0f, -210f),
             fontSize: 24,
             TextAnchor.MiddleCenter);
+
+        registered = true;
     }
 
     public static void Clear()
     {
+        Text readout = Overlay.Peek(ElementLayout.Elements.ShootCue);
         if (readout != null && readout.text.Length > 0)
             readout.text = string.Empty;
     }
@@ -115,6 +118,10 @@ internal static class ShootCue
             drivenHint = hint;
         }
 
+        if (!registered)
+            return;
+
+        Text readout = Overlay.Element(ElementLayout.Elements.ShootCue);
         if (readout == null)
             return;
 

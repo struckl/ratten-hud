@@ -36,19 +36,21 @@ internal static class RadarWarningTags
     private static readonly List<Contact> Sorted = new List<Contact>();
     private static readonly System.Text.StringBuilder Builder = new System.Text.StringBuilder(256);
 
-    private static Text readout;
+    private static bool registered;
 
     public static void Initialize()
     {
         if (!Plugin.RadarTags.Value)
             return;
 
-        readout = Overlay.CreateText(
+        Overlay.Register(
             ElementLayout.Elements.RadarWarnings,
             anchor: new Vector2(0f, 0.5f),
             offset: new Vector2(230f, 0f),
             fontSize: 20,
             TextAnchor.MiddleLeft);
+
+        registered = true;
     }
 
     /// <summary>Records a sweep. Called from the radar warning patch below.</summary>
@@ -70,7 +72,7 @@ internal static class RadarWarningTags
 
     public static void Tick()
     {
-        if (readout == null)
+        if (!registered)
             return;
 
         if (!Plugin.RadarTags.Value || !Overlay.InCockpit)
@@ -128,7 +130,9 @@ internal static class RadarWarningTags
                    .Append("</color>");
         }
 
-        readout.text = Builder.ToString();
+        Text readout = Overlay.Element(ElementLayout.Elements.RadarWarnings);
+        if (readout != null)
+            readout.text = Builder.ToString();
     }
 
     private static int Rank(Contact contact, MissileWarning warning)
@@ -165,6 +169,7 @@ internal static class RadarWarningTags
 
     private static void Clear()
     {
+        Text readout = Overlay.Peek(ElementLayout.Elements.RadarWarnings);
         if (readout != null && readout.text.Length > 0)
             readout.text = string.Empty;
     }

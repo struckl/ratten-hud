@@ -57,9 +57,6 @@ public class Plugin : BaseUnityPlugin
 
     private void Update()
     {
-        // The elements are built during plugin load, before the scene has a font
-        // to fall back on, so keep trying until one resolves.
-        Overlay.EnsureFonts();
         Overlay.LogDiagnosticsOnce();
 
         MissileThreatBanner.Tick();

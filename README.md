@@ -239,17 +239,37 @@ countermeasure indicator and no flare count — from the game or from this plugi
 `PlayerSettings.hudWeapons` is checked deliberately rather than forced, so the
 setting keeps meaning what it says.
 
-The plugin logs one diagnostic line the first time you are in a cockpit, naming
-every gate a missing readout can be stuck behind:
+The plugin logs one diagnostic line the first time you are actually in a
+cockpit, naming every gate a missing readout can be stuck behind:
 
 ```
-[Info   :Ratten HUD] Overlay: canvas=True, font=LegacyRuntime, elements=4, inCockpit=True, ...
+[Info   :Ratten HUD] Overlay: canvas=True, font=LegacyRuntime, registered=4, live=4, canvasBuilds=2, tracked=yes
 ```
 
 `font=<null>` means the overlay text is drawing with no font, which renders
-nothing. `inCockpit=False` means the canvas readouts are clearing themselves
-every frame. Either way the patch-based readouts carry on working, which is what
-makes the failure look selective.
+nothing. `canvas=False` means the canvas was destroyed. `canvasBuilds` counts
+how many times it has had to be rebuilt — see below.
+
+#### Why the overlay rebuilds itself
+
+BepInEx runs plugin `Awake` from a static constructor, before the first scene
+has finished loading:
+
+```
+BepInEx.Bootstrap.Chainloader:Start()
+UnityEngine.InputSystem.InputSystem:.cctor()
+```
+
+`DontDestroyOnLoad` does not stick that early, so the canvas built at load time
+is destroyed by the first `LoadSceneMode.Single` into `GameWorld`. Anything
+holding a `Text` from load time is then holding a destroyed object and silently
+draws nothing for the rest of the session — while the patch-based readouts carry
+on working, which is what makes the failure look selective.
+
+Elements are therefore declared once with `Overlay.Register` and fetched through
+`Overlay.Element` every frame, so a lost canvas is simply rebuilt on the next
+frame that needs it. Clear paths go through `Overlay.Peek`, which never
+resurrects the canvas just to blank an already-empty readout.
 
 ## Building
 

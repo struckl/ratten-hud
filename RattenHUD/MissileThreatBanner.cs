@@ -57,8 +57,7 @@ internal static class MissileThreatBanner
     // countdown would be a fiction.
     private const float MinClosureForCountdown = 10f;
 
-    private static Text banner;
-    private static Text countdown;
+    private static bool registered;
 
     // Reused every frame so the readout does not allocate a fresh buffer at
     // exactly the moment the player can least afford a hitch.
@@ -71,24 +70,26 @@ internal static class MissileThreatBanner
         if (!Plugin.MissileBanner.Value)
             return;
 
-        banner = Overlay.CreateText(
+        Overlay.Register(
             ElementLayout.Elements.MissileBanner,
             anchor: new Vector2(0.5f, 0.5f),
             offset: new Vector2(0f, 260f),
             fontSize: 30,
             TextAnchor.MiddleCenter);
 
-        countdown = Overlay.CreateText(
+        Overlay.Register(
             ElementLayout.Elements.ImpactCountdown,
             anchor: new Vector2(0.5f, 0.5f),
             offset: new Vector2(0f, 220f),
             fontSize: 26,
             TextAnchor.MiddleCenter);
+
+        registered = true;
     }
 
     public static void Tick()
     {
-        if (banner == null)
+        if (!registered)
             return;
 
         if (!Plugin.MissileBanner.Value || !Overlay.InCockpit)
@@ -155,6 +156,11 @@ internal static class MissileThreatBanner
                 Builder.Append('\n');
             AppendLine(seeker, Counts[seeker], alpha);
         }
+
+        Text banner = Overlay.Element(ElementLayout.Elements.MissileBanner);
+        Text countdown = Overlay.Element(ElementLayout.Elements.ImpactCountdown);
+        if (banner == null || countdown == null)
+            return;
 
         banner.text = Builder.ToString();
 
@@ -237,6 +243,11 @@ internal static class MissileThreatBanner
 
     private static void Clear()
     {
+        // Peek, not Element: blanking an empty readout must not resurrect the
+        // canvas on every frame the player spends outside a cockpit.
+        Text banner = Overlay.Peek(ElementLayout.Elements.MissileBanner);
+        Text countdown = Overlay.Peek(ElementLayout.Elements.ImpactCountdown);
+
         if (banner != null && banner.text.Length > 0)
             banner.text = string.Empty;
         if (countdown != null && countdown.text.Length > 0)
