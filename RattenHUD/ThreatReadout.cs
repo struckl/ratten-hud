@@ -75,14 +75,15 @@ internal static class ThreatReadout
 
     public static void Initialize()
     {
-        // On the glass with the flight readouts: left of centre, under the fuel
-        // gauge column, stacking downwards. Movable via the layout table as
-        // "Threats".
+        // On the glass with the flight readouts: the right-hand column, a line
+        // of space under the altitude block (which the default layout table
+        // pulls up under the climb rate), stacking downwards. Movable via the
+        // layout table as "Threats".
         Overlay.Register(
             ElementName,
             anchor: new Vector2(0.5f, 0.5f),
             pivot: new Vector2(0f, 1f),
-            offset: new Vector2(-340f, -130f),
+            offset: new Vector2(197f, -22f),
             fontScale: 1f,
             TextAnchor.UpperLeft);
     }

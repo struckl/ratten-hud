@@ -137,7 +137,7 @@ public class Plugin : BaseUnityPlugin
             "Layout", "Enabled", true,
             "Apply the element layout table below.");
         Layout = Config.Bind(
-            "Layout", "Elements", "Climbrate:0,40",
+            "Layout", "Elements", "Climbrate:0,40;Altitude:0,28",
             "Per-element offset, scale and visibility, as a semicolon separated "
             + "list of Name:xOffset,yOffset[,scale][,visible].\n"
             + "Positive Y is up, offsets are in 1080p reference pixels, and a "
@@ -150,7 +150,10 @@ public class Plugin : BaseUnityPlugin
             + "This plugin's threat readout moves as 'Threats'.\n"
             + "The default Climbrate:0,40 is the old MKMods "
             + "ClimbRateVerticalOffset, which now lives here: the stock climb "
-            + "rate readout sits low enough to collide with its neighbours.\n"
+            + "rate readout sits low enough to collide with its neighbours. "
+            + "Altitude:0,28 closes the gap that move opened, so the altitude "
+            + "block sits directly under the climb rate and the threat readout "
+            + "fits beneath it.\n"
             + "If you still run MKMods alongside this, set its "
             + "ClimbRateVerticalOffset to 0 first, or the readout moves twice.\n"
             + "Example: Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false");

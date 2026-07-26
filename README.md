@@ -27,8 +27,10 @@ Radar [MIG-29] LOCK
 Radar [RDR] SEARCH
 ```
 
-It sits under the fuel column by default and moves via the layout table as
-`Threats` (e.g. `Elements = Threats:100,-50`).
+It sits in the right-hand flight column by default — the layout table pulls the
+altitude block up under the climb rate (`Altitude:0,28`), and the threat block
+takes the space that frees below it. It moves via the layout table as `Threats`
+(e.g. `Elements = Threats:100,-50`).
 
 ### Missile defeat hint and time to impact
 
