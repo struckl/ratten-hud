@@ -47,9 +47,28 @@ internal static class ElementLayout
     private static readonly Dictionary<string, LayoutRule> Rules =
         new Dictionary<string, LayoutRule>();
 
-    // Baseline anchored positions, captured the first time an element is seen,
-    // so that reapplying the table is idempotent rather than cumulative.
-    private static readonly Dictionary<int, Vector2> Baselines = new Dictionary<int, Vector2>();
+    /// <summary>Everything we overwrote on one element, so it can be put back exactly.</summary>
+    private readonly struct Baseline
+    {
+        public readonly Vector2 Position;
+        public readonly Vector3 Scale;
+        public readonly bool Active;
+
+        public Baseline(Vector2 position, Vector3 scale, bool active)
+        {
+            Position = position;
+            Scale = scale;
+            Active = active;
+        }
+    }
+
+    // Captured the first time we act on an element, so reapplying the table is
+    // idempotent rather than cumulative, and so a removed rule can be undone.
+    private static readonly Dictionary<int, Baseline> Baselines = new Dictionary<int, Baseline>();
+
+    // Elements we have actually modified. Anything not in here is untouched and
+    // must stay that way.
+    private static readonly HashSet<int> Modified = new HashSet<int>();
 
     // Our own elements, so a config reload can re-apply to them immediately.
     private static readonly Dictionary<string, RectTransform> Owned =
@@ -135,8 +154,14 @@ internal static class ElementLayout
 
     /// <summary>
     /// Applies the rule for <paramref name="name"/> to <paramref name="rect"/>.
-    /// Elements with no rule are restored to their baseline, so deleting an
-    /// entry from the config undoes it rather than freezing the last value.
+    ///
+    /// An element with no rule is left strictly alone. That matters more than it
+    /// sounds: this runs against every HUD element on every settings refresh, so
+    /// "helpfully" normalising unruled elements would flatten prefab scaling on
+    /// gauges that ship scaled, re-show elements the game deliberately hid, and
+    /// silently undo other plugins' positioning every time the player opened the
+    /// settings menu. Only elements we were actually asked to move are touched,
+    /// and only they are restored when their rule goes away.
     /// </summary>
     public static void Apply(string name, RectTransform rect)
     {
@@ -144,23 +169,32 @@ internal static class ElementLayout
             return;
 
         int id = rect.GetInstanceID();
-        if (!Baselines.TryGetValue(id, out Vector2 baseline))
-        {
-            baseline = rect.anchoredPosition;
-            Baselines[id] = baseline;
-        }
+        bool hasRule = Rules.TryGetValue(name, out LayoutRule rule);
 
-        if (!Rules.TryGetValue(name, out LayoutRule rule))
+        if (!hasRule)
         {
-            rect.anchoredPosition = baseline;
-            rect.localScale = Vector3.one;
-            if (!rect.gameObject.activeSelf)
-                rect.gameObject.SetActive(value: true);
+            // Undo ourselves only if this element is one we previously moved.
+            if (Modified.Remove(id) && Baselines.TryGetValue(id, out Baseline undo))
+            {
+                rect.anchoredPosition = undo.Position;
+                rect.localScale = undo.Scale;
+                if (rect.gameObject.activeSelf != undo.Active)
+                    rect.gameObject.SetActive(undo.Active);
+            }
             return;
         }
 
-        rect.anchoredPosition = baseline + rule.Offset;
-        rect.localScale = new Vector3(rule.Scale, rule.Scale, 1f);
+        if (!Baselines.TryGetValue(id, out Baseline baseline))
+        {
+            baseline = new Baseline(rect.anchoredPosition, rect.localScale, rect.gameObject.activeSelf);
+            Baselines[id] = baseline;
+        }
+        Modified.Add(id);
+
+        rect.anchoredPosition = baseline.Position + rule.Offset;
+        // Scale multiplies whatever the prefab already had rather than replacing
+        // it, so a gauge that ships at 0.8 stays proportioned.
+        rect.localScale = baseline.Scale * rule.Scale;
         if (rect.gameObject.activeSelf != rule.Visible)
             rect.gameObject.SetActive(rule.Visible);
     }

@@ -53,10 +53,16 @@ internal static class TargetDataBlockPatch
         float aspect = Vector3.Angle(targetHeading, -losDirection);
 
         string aspectTag = aspect < 45f ? "HOT" : aspect > 135f ? "COLD" : "BEAM";
+        char trend = closure >= 0f ? '▼' : '▲';
 
+        // One compact line at a reduced size, not a stacked block. This text is
+        // anchored to the target marker, so every extra line pushes the readout
+        // further over whatever else is on the glass -- and with several targets
+        // selected there are several markers competing for the same space.
+        int size = Mathf.Max(8, Mathf.RoundToInt(___targetInfo.fontSize * 0.7f));
         ___targetInfo.text +=
-            $"\n{UnitConverter.SpeedReading(Mathf.Abs(closure))} {(closure >= 0f ? "closing" : "opening")}"
-            + $"\n{aspectTag} {aspect:F0}°"
-            + $"\nANGELS {UnitConverter.AltitudeReading(knownPosition.y)}";
+            $"\n<size={size}>{trend}{UnitConverter.SpeedReading(Mathf.Abs(closure))}"
+            + $"  {aspectTag} {aspect:F0}°"
+            + $"  {UnitConverter.AltitudeReading(knownPosition.y)}</size>";
     }
 }

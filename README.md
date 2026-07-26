@@ -109,6 +109,37 @@ MIG-29
 Aspect is measured from the target's nose to the reciprocal of the line of
 sight — `HOT` under 45°, `BEAM` through the middle, `COLD` past 135°.
 
+It is deliberately one compact line at 70% of the surrounding text size. This
+readout is anchored to the target marker, so every extra line pushes it further
+across the glass — and with several targets selected there are several markers
+competing for the same space.
+
+## Declutter
+
+### Objective label
+
+The objective overlay's name-and-range text is hidden by default, leaving just
+the circle, the dot and the off-screen pointer.
+
+| `ObjectiveLabel` | Result |
+| --- | --- |
+| `Hidden` *(default)* | Circle only, no text. |
+| `DistanceOnly` | Range, no objective name. |
+| `Full` | Stock label. |
+
+### Hidden markers
+
+`HiddenMarkerUnits` is a comma-separated, case-insensitive list of units that
+get no HUD marker. They stay on the map — this filters
+`CombatHUD.CreateMarker`, and the map draws from `DynamicMap` instead.
+
+Defaults to `pilot`, to keep downed pilots off the glass.
+
+> The game has no single class for a downed pilot — `Pilot` is not a `Unit` —
+> so this matches on the unit's display name, type code and object name rather
+> than on a type. If it catches too much or too little, check the unit's name on
+> the map and adjust the list.
+
 ## Layout
 
 ### Element offsets and declutter
@@ -122,8 +153,14 @@ Elements = Climbrate:0,40;RadarWarnings:20,0,0.9;CountermeasureIndicator:0,0,1,f
 
 Each entry is `Name:xOffset,yOffset[,scale][,visible]`. Positive Y is up, offsets
 are in 1080p reference pixels, and a trailing `false` hides the element outright.
-Deleting an entry restores the element to its stock position rather than freezing
-the last value.
+Deleting an entry restores the element to exactly what it was before this plugin
+touched it, rather than freezing the last value.
+
+Elements with **no rule are never written to at all**. This hook runs against
+every HUD element on every settings refresh, so normalising unruled elements
+would flatten prefab scaling on gauges that ship scaled, re-show elements the
+game deliberately hid, and undo other plugins' positioning. `scale` multiplies
+the element's existing scale rather than replacing it, for the same reason.
 
 Game elements are named after the HUD component that drives them (`Climbrate`,
 `CountermeasureIndicator`, `WeaponIndicator`, …) rather than by GameObject name,
@@ -157,6 +194,9 @@ Every feature has its own switch in
 | Weapons | `TargetDataBlock` | `true` |
 | Layout | `Enabled` | `true` |
 | Layout | `Elements` | *(empty)* |
+| Declutter | `ObjectiveLabel` | `Hidden` |
+| Declutter | `HideMarkers` | `true` |
+| Declutter | `HiddenMarkerUnits` | `pilot` |
 
 The layout table re-applies live when the config file changes, so you can nudge
 elements without restarting.

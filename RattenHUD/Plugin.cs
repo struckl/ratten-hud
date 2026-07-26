@@ -28,12 +28,18 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> LayoutEnabled;
     internal static ConfigEntry<string> Layout;
 
+    // Declutter
+    internal static ConfigEntry<ObjectiveLabelMode> ObjectiveLabel;
+    internal static ConfigEntry<bool> HideMarkers;
+    internal static ConfigEntry<string> HiddenMarkerUnits;
+
     private void Awake()
     {
         Logger = base.Logger;
 
         BindConfig();
         ElementLayout.Initialize();
+        Declutter.Initialize();
         MissileThreatBanner.Initialize();
         RadarWarningTags.Initialize();
         RattenHUD.ShootCue.Initialize();
@@ -98,5 +104,22 @@ public class Plugin : BaseUnityPlugin
             + "migrate that tweak, set MKMods' ClimbRateVerticalOffset to 0 and "
             + "add Climbrate:0,40 below.\n"
             + "Example: Climbrate:0,40;RadarWarnings:20,0,0.9;CountermeasureIndicator:0,0,1,false");
+
+        ObjectiveLabel = Config.Bind(
+            "Declutter", "ObjectiveLabel", ObjectiveLabelMode.Hidden,
+            "How much of the objective overlay text to keep. Hidden leaves just "
+            + "the circle, dot and off-screen pointer. DistanceOnly drops the "
+            + "objective name but keeps the range. Full is the stock label.");
+        HideMarkers = Config.Bind(
+            "Declutter", "HideMarkers", true,
+            "Drop HUD markers for the unit types listed below. They stay on the "
+            + "map; only the marker on the glass goes away.");
+        HiddenMarkerUnits = Config.Bind(
+            "Declutter", "HiddenMarkerUnits", "pilot",
+            "Comma separated, case insensitive. Each entry is matched as a "
+            + "substring against the unit's display name, type code and object "
+            + "name, because the game has no single class for a downed pilot to "
+            + "key off. Widen or narrow this if it catches too much or too "
+            + "little: check the unit's name on the map and use that.");
     }
 }
