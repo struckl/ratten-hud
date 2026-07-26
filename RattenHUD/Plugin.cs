@@ -14,6 +14,9 @@ public class Plugin : BaseUnityPlugin
 
     internal static new ManualLogSource Logger;
 
+    // Master switch
+    internal static ConfigEntry<bool> Enabled;
+
     // Threat readouts
     internal static ConfigEntry<bool> MissileDefeatHint;
     internal static ConfigEntry<bool> ImpactCountdown;
@@ -43,6 +46,12 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> HideMarkers;
     internal static ConfigEntry<string> HiddenMarkerUnits;
 
+    /// <summary>A feature is active only if both it and the whole mod are enabled.</summary>
+    internal static bool On(ConfigEntry<bool> feature)
+    {
+        return Enabled.Value && feature.Value;
+    }
+
     private void Awake()
     {
         Logger = base.Logger;
@@ -67,112 +76,122 @@ public class Plugin : BaseUnityPlugin
 
     private void BindConfig()
     {
+        Enabled = Config.Bind(
+            "1. General", "Enable mod", true,
+            "Master switch for the whole mod. Off: every feature below is disabled "
+            + "and the HUD looks exactly like the unmodded game.");
+
         MissileDefeatHint = Config.Bind(
-            "Threats", "MissileDefeatHint", true,
-            "List inbound missiles on the HUD glass with the countermeasure "
-            + "that defeats each seeker: FLARE, NOTCH, HIDE or RADAR OFF. The "
-            + "readout sits with the flight readouts and moves via the layout "
-            + "table as 'Threats'.");
+            "2. Threat warnings", "Missile defeat hint", true,
+            "List every missile coming at you in red, centred just above the "
+            + "SHOOT / OUT OF RANGE hint, each with the counter that defeats it: "
+            + "FLARE (drop flares), NOTCH (fly at a right angle to the radar), "
+            + "HIDE (break line of sight) or RADAR OFF (switch your radar off). "
+            + "The soonest impact is always the bottom line. The block can be "
+            + "moved via '6. HUD layout' under the name 'Missiles'.");
         ImpactCountdown = Config.Bind(
-            "Threats", "ImpactCountdown", true,
-            "Add the estimated time to impact to each missile line on the HUD "
-            + "glass, while the missile is actually gaining.");
+            "2. Threat warnings", "Impact countdown", true,
+            "Add the estimated seconds until impact to each missile line (only "
+            + "shown while the missile is actually catching up to you).");
         RadarTags = Config.Bind(
-            "Threats", "RadarWarningTags", true,
-            "List radar emitters painting you under the missile lines on the "
-            + "HUD glass, tagged SEARCH / LOCK / LAUNCH and named by unit type.");
+            "2. Threat warnings", "Radar warning tags", true,
+            "List enemy radars that see you in the right-hand flight column, "
+            + "named by unit type. A radar merely scanning shows how often it "
+            + "has pinged you (x2, x3, ...) and a single ping is ignored as "
+            + "noise; LOCK (locked on) and LAUNCH (missile on the way) show "
+            + "immediately. The list can be moved via '6. HUD layout' under "
+            + "the name 'Threats'.");
         HideStockRadarWarning = Config.Bind(
-            "Threats", "HideStockRadarWarning", false,
-            "Suppress the game's own directional radar warning arrows, leaving "
-            + "the tagged list as the only radar warning display. The warning "
-            + "tone still sounds and the tags are unaffected; only the wedges "
-            + "the game draws around the map go away.");
+            "2. Threat warnings", "Hide stock radar arrows", false,
+            "Remove the game's own radar warning wedges around the minimap, so the "
+            + "tag list above becomes your only radar warning display. The audio "
+            + "warning tone stays.");
         CountermeasureColours = Config.Bind(
-            "Threats", "CountermeasureColours", true,
-            "Colour the countermeasure indicator by remaining load (green, amber, "
+            "2. Threat warnings", "Countermeasure colours", true,
+            "Colour the flare/chaff counter by how much is left (green, amber, "
             + "red) and flash it when empty, instead of the stock green-then-grey.");
 
         ShootCue = Config.Bind(
-            "Weapons", "ShootCue", true,
-            "Show the firing cue across the whole valid envelope: the game's own "
-            + "SHOOT inside the no-escape zone, IN RANGE between it and Rmax. The "
-            + "game computes this but only ever displays it inside the no-escape "
-            + "zone.");
+            "3. Weapons", "Extended shoot cue", true,
+            "The game only shows SHOOT once the target cannot escape your missile "
+            + "any more. This additionally shows IN RANGE as soon as a shot is "
+            + "possible at all, so you see the whole firing window.");
         TargetDataBlock = Config.Bind(
-            "Weapons", "TargetDataBlock", true,
-            "Add closure, aspect and altitude to the selected target readout.");
+            "3. Weapons", "Target data block", true,
+            "Add closure speed, aspect and altitude to the readout of the "
+            + "currently selected target.");
 
         ContactGlyphs = Config.Bind(
-            "Contacts", "ContactGlyphs", true,
-            "Draw the number out of each aircraft's type code inside its HUD "
-            + "marker: 12 for an FS-12, 46 for an SAH-46. Ground units have icons "
-            + "that differ; every aircraft draws the same triangle, so without "
-            + "this the only way to tell a bomber from a fighter is to select it "
-            + "and read the target block.");
+            "4. Contacts", "Aircraft type symbols", true,
+            "Draw each aircraft's type number inside its HUD marker: 12 for an "
+            + "FS-12, 46 for an SAH-46. Without this, every aircraft is the same "
+            + "anonymous triangle and you have to select one to find out whether "
+            + "it is a fighter or a bomber.");
         ContactGlyphFriendlies = Config.Bind(
-            "Contacts", "GlyphFriendlyAircraft", true,
-            "Also mark aircraft of your own faction. The symbol sits inside a "
-            + "marker that was on the glass anyway, so friendlies cost no extra "
-            + "space -- but knowing which of them is the tanker still helps.");
+            "4. Contacts", "Symbols on friendly aircraft", true,
+            "Also draw the type number on aircraft of your own faction -- useful "
+            + "for spotting which one is the tanker.");
         ContactGlyphScale = Config.Bind(
-            "Contacts", "GlyphScale", 0.2f,
-            "Symbol size as a fraction of the marker it sits in, so it follows "
-            + "your HUD icon size and shrinks with a distant contact. The "
-            + "marker's rect is larger than the triangle drawn inside it, so a "
-            + "fifth of it is already a symbol you can read. Re-read every "
-            + "frame: edit it while the game runs and the symbols resize as you "
-            + "save. Below five pixels the symbol is dropped rather than drawn "
-            + "as a smudge, which a small value reaches on far contacts first.");
+            "4. Contacts", "Symbol size", 0.2f,
+            new ConfigDescription(
+                "Size of the type number as a fraction of the HUD marker it sits "
+                + "in (0.2 = a fifth, which is already readable). It follows your "
+                + "HUD icon size and shrinks with distance; symbols smaller than "
+                + "five pixels are not drawn at all. Can be changed while the game "
+                + "is running.",
+                new AcceptableValueRange<float>(0.05f, 1f)));
 
         FuelTimeReadout = Config.Bind(
-            "Flight", "FuelTimeReadout", true,
-            "Show the estimated remaining fuel time next to the fuel gauge. The "
-            + "estimate comes from fuel burned between samples, so it tracks the "
-            + "current throttle setting rather than a fixed rate.");
+            "5. Flight info", "Fuel time readout", true,
+            "Show the estimated remaining flying time next to the fuel gauge. "
+            + "Based on your actual fuel burn, so it follows your current "
+            + "throttle setting.");
         FuelTimeUpdateRate = Config.Bind(
-            "Flight", "FuelTimeUpdateRate", 10f,
-            "Seconds between fuel level samples used to estimate the remaining time.");
+            "5. Flight info", "Fuel check interval (seconds)", 10f,
+            "How often the fuel level is sampled for the estimate. Smaller reacts "
+            + "faster to throttle changes but jumps around more.");
 
         LayoutEnabled = Config.Bind(
-            "Layout", "Enabled", true,
-            "Apply the element layout table below.");
+            "6. HUD layout", "Enable custom layout", true,
+            "Apply the 'Element layout' line below, which moves, scales or hides "
+            + "individual HUD elements. Off: everything sits where the game "
+            + "puts it.");
         Layout = Config.Bind(
-            "Layout", "Elements", "Climbrate:0,40;Altitude:0,28",
-            "Per-element offset, scale and visibility, as a semicolon separated "
-            + "list of Name:xOffset,yOffset[,scale][,visible].\n"
-            + "Positive Y is up, offsets are in 1080p reference pixels, and a "
-            + "trailing 'false' hides the element entirely (declutter).\n"
-            + "Elements are named after the HUD component that drives them: "
-            + "Climbrate, CountermeasureIndicator, FuelGauge, SpeedGauge, "
-            + "WeaponIndicator, and so on. ArtificialHorizon and GearIndicator "
-            + "cannot be moved this way; they are the only two HUD elements that "
-            + "do not route through the shared settings refresh.\n"
-            + "This plugin's threat readout moves as 'Threats'.\n"
-            + "The default Climbrate:0,40 is the old MKMods "
-            + "ClimbRateVerticalOffset, which now lives here: the stock climb "
-            + "rate readout sits low enough to collide with its neighbours. "
-            + "Altitude:0,28 closes the gap that move opened, so the altitude "
-            + "block sits directly under the climb rate and the threat readout "
-            + "fits beneath it.\n"
-            + "If you still run MKMods alongside this, set its "
-            + "ClimbRateVerticalOffset to 0 first, or the readout moves twice.\n"
-            + "Example: Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false");
+            "6. HUD layout", "Element layout", "Climbrate:0,40;Altitude:0,28",
+            "Advanced setting: where each HUD element sits. One entry per "
+            + "element, separated by semicolons.\n"
+            + "Format: Name:right,up[,scale][,visible] -- offsets in pixels on a "
+            + "1080p reference screen, positive = right/up, and a trailing "
+            + "'false' hides the element entirely.\n"
+            + "Example: Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false\n"
+            + "(climb rate 40 up; speed gauge 20 right at 90% size; "
+            + "countermeasure counter hidden.)\n"
+            + "Element names match the game's HUD components: Climbrate, "
+            + "Altitude, SpeedGauge, FuelGauge, CountermeasureIndicator, "
+            + "WeaponIndicator, and so on. This mod's radar list moves as "
+            + "'Threats' and its missile warnings as 'Missiles'. "
+            + "ArtificialHorizon and GearIndicator cannot be moved.\n"
+            + "The default moves the climb rate up (in the stock layout it "
+            + "collides with its neighbours) and tucks the altitude block "
+            + "underneath it, so the threat readout fits below.\n"
+            + "If you also run MKMods, set its ClimbRateVerticalOffset to 0 "
+            + "first, or the climb rate moves twice.");
 
         ObjectiveLabel = Config.Bind(
-            "Declutter", "ObjectiveLabel", ObjectiveLabelMode.Hidden,
-            "How much of the objective overlay text to keep. Hidden leaves just "
-            + "the circle, dot and off-screen pointer. DistanceOnly drops the "
-            + "objective name but keeps the range. Full is the stock label.");
+            "7. Declutter", "Objective label", ObjectiveLabelMode.Hidden,
+            "How much text to show on the objective marker. Hidden: just the "
+            + "circle, dot and off-screen pointer, no text. DistanceOnly: only "
+            + "the distance. Full: name and distance, like the unmodded game.");
         HideMarkers = Config.Bind(
-            "Declutter", "HideMarkers", true,
-            "Drop HUD markers for the unit types listed below. They stay on the "
-            + "map; only the marker on the glass goes away.");
+            "7. Declutter", "Hide chosen unit markers", true,
+            "Remove HUD markers for the unit types listed below. The units stay "
+            + "visible on the map; only the marker on the HUD glass goes away.");
         HiddenMarkerUnits = Config.Bind(
-            "Declutter", "HiddenMarkerUnits", "pilot",
-            "Comma separated, case insensitive. Each entry is matched as a "
-            + "substring against the unit's display name, type code and object "
-            + "name, because the game has no single class for a downed pilot to "
-            + "key off. Widen or narrow this if it catches too much or too "
-            + "little: check the unit's name on the map and use that.");
+            "7. Declutter", "Hidden unit types", "pilot",
+            "Which units 'Hide chosen unit markers' removes. Comma separated, "
+            + "capitalisation does not matter, and each entry matches any unit "
+            + "whose name contains it -- the default 'pilot' hides downed pilot "
+            + "markers. Not sure what a unit is called? Check its name on the "
+            + "map and use that.");
     }
 }

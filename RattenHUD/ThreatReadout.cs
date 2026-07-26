@@ -6,34 +6,51 @@ using UnityEngine.UI;
 namespace RattenHUD;
 
 /// <summary>
-/// One threat block on the glass, drawn like the fuel time and climb rate
-/// readouts: a clone of a real HUD label, in the HUD font and the player's HUD
-/// colour, sitting inside the projected HUD rather than over the map.
+/// Two threat readouts on the glass, drawn like the fuel time and climb rate
+/// readouts: clones of a real HUD label, in the HUD font, sitting inside the
+/// projected HUD rather than over the map.
 ///
-///     Missile [IR] 2.0km  FLARE  2.3s
-///     Missile [ARH] 5.2km  NOTCH  9.4s
-///     Radar [MIG-29] LOCK
-///     Radar [RDR] SEARCH
+/// Missiles are a red block centred over the weapon hint -- where SHOOT and
+/// OUT OF RANGE appear, which is where the pilot is looking when the answer
+/// matters -- soonest impact nearest the hint, each line with the
+/// countermeasure that defeats its seeker and a live time to impact:
 ///
-/// Missiles come first, soonest impact first, each with the countermeasure
-/// that defeats its seeker and a live time to impact. Radar emitters follow,
-/// shooters before trackers before sweeps. The game's own threat list over the
-/// map is left exactly as it is -- this is the same information said where the
-/// pilot is actually looking.
+///     [ARH] 5.2km  NOTCH  9.4s
+///     [IR] 2.0km  FLARE  2.3s
+///
+/// Radar emitters list in the right-hand flight column under the altitude
+/// block, shooters before trackers before sweeps. A sweep line carries the
+/// number of times that emitter has painted us; a single ping is noise and is
+/// not shown at all, a lock or a launch shows immediately:
+///
+///     [MIG-29] LOCK
+///     [RDR] x3
+///
+/// No "Missile"/"Radar" prefixes: the bracketed code and the tag already say
+/// it, and short lines read faster in combat. The game's own threat list over
+/// the map is left exactly as it is -- this is the same information said where
+/// the pilot is actually looking.
 /// </summary>
 internal static class ThreatReadout
 {
-    private const string ElementName = "Threats";
+    private const string MissilesElement = "Missiles";
+    private const string RadarsElement = "Threats";
 
     /// <summary>How long an emitter stays listed after its last sweep. Matches
     /// the lifetime the game gives its own directional warning icons.</summary>
     private const float ContactLifetime = 4f;
+
+    /// <summary>A radar that paints us once and never again is noise; the list
+    /// starts caring at the second ping inside a contact's lifetime.</summary>
+    private const int MinPingsToShow = 2;
 
     /// <summary>
     /// Below this closure rate the missile is not actually gaining on us and a
     /// countdown would be a fiction.
     /// </summary>
     private const float MinClosureForCountdown = 10f;
+
+    private static readonly Color WarningRed = new Color(1f, 0.25f, 0.25f);
 
     /// <summary>
     /// Seeker ids as reported by <c>Missile.GetSeekerType()</c>, mapped to the
@@ -54,6 +71,7 @@ internal static class ThreatReadout
         public Unit Emitter;
         public bool IsTarget;
         public float LastSeen;
+        public int Pings;
     }
 
     private struct Inbound
@@ -75,12 +93,22 @@ internal static class ThreatReadout
 
     public static void Initialize()
     {
-        // On the glass with the flight readouts: the right-hand column, a line
-        // of space under the altitude block (which the default layout table
-        // pulls up under the climb rate), stacking downwards. Movable via the
-        // layout table as "Threats".
+        // Centred over the weapon hint, growing upwards: the bottom line is
+        // the fixed one, so the soonest impact always sits in the same spot
+        // just above SHOOT / OUT OF RANGE. Movable as "Missiles".
         Overlay.Register(
-            ElementName,
+            MissilesElement,
+            anchor: new Vector2(0.5f, 0.5f),
+            pivot: new Vector2(0.5f, 0f),
+            offset: new Vector2(0f, 155f),
+            fontScale: 1f,
+            TextAnchor.LowerCenter);
+
+        // The right-hand flight column, a line of space under the altitude
+        // block (which the default layout table pulls up under the climb
+        // rate), stacking downwards. Movable as "Threats".
+        Overlay.Register(
+            RadarsElement,
             anchor: new Vector2(0.5f, 0.5f),
             pivot: new Vector2(0f, 1f),
             offset: new Vector2(197f, -22f),
@@ -101,17 +129,19 @@ internal static class ThreatReadout
         }
         contact.IsTarget = isTarget;
         contact.LastSeen = Time.timeSinceLevelLoad;
+        contact.Pings++;
     }
 
     public static void Tick()
     {
-        bool wantMissiles = Plugin.MissileDefeatHint.Value || Plugin.ImpactCountdown.Value;
-        bool wantRadars = Plugin.RadarTags.Value;
+        bool wantMissiles = Plugin.On(Plugin.MissileDefeatHint) || Plugin.On(Plugin.ImpactCountdown);
+        bool wantRadars = Plugin.On(Plugin.RadarTags);
 
         if ((!wantMissiles && !wantRadars) || !Overlay.InCockpit)
         {
             Contacts.Clear();
-            Clear();
+            Clear(MissilesElement);
+            Clear(RadarsElement);
             return;
         }
 
@@ -119,21 +149,14 @@ internal static class ThreatReadout
         MissileWarning warning = aircraft.GetMissileWarningSystem();
 
         Builder.Length = 0;
-
         if (wantMissiles && warning != null)
             AppendMissiles(aircraft, warning);
+        Write(MissilesElement, WarningRed);
+
+        Builder.Length = 0;
         if (wantRadars)
             AppendRadars(warning);
-
-        if (Builder.Length == 0)
-        {
-            Clear();
-            return;
-        }
-
-        Text readout = Overlay.Element(ElementName);
-        if (readout != null)
-            readout.text = Builder.ToString();
+        Write(RadarsElement, null);
     }
 
     private static void AppendMissiles(Aircraft aircraft, MissileWarning warning)
@@ -163,17 +186,21 @@ internal static class ThreatReadout
         // Soonest impact first; anything not actually gaining sorts last.
         Inbounds.Sort(CompareInbound);
 
-        foreach (Inbound inbound in Inbounds)
+        // Appended in reverse: the block is bottom-anchored and grows upwards,
+        // so the last line written is the fixed one nearest the weapon hint --
+        // and that line should be the soonest impact.
+        for (int i = Inbounds.Count - 1; i >= 0; i--)
         {
+            Inbound inbound = Inbounds[i];
             if (Builder.Length > 0)
                 Builder.Append('\n');
 
-            Builder.Append("Missile [")
+            Builder.Append('[')
                    .Append(inbound.Missile.GetSeekerType())
                    .Append("] ")
                    .Append(UnitConverter.DistanceReading(inbound.Distance));
 
-            if (Plugin.MissileDefeatHint.Value)
+            if (Plugin.On(Plugin.MissileDefeatHint))
             {
                 // An unknown seeker type (a new game version, say) still gets a
                 // generic answer rather than nothing.
@@ -182,7 +209,7 @@ internal static class ThreatReadout
                 Builder.Append("  ").Append(answer);
             }
 
-            if (Plugin.ImpactCountdown.Value && inbound.Gaining)
+            if (Plugin.On(Plugin.ImpactCountdown) && inbound.Gaining)
                 Builder.Append("  ").Append(inbound.TimeToImpact.ToString("F1")).Append('s');
         }
     }
@@ -217,13 +244,23 @@ internal static class ThreatReadout
 
         foreach (Contact contact in SortedContacts)
         {
+            bool launched = HasLaunched(contact.Emitter, warning);
+
+            // A sweep that happened once is noise. A lock or a launch is never
+            // noise, however fresh the contact.
+            if (!launched && !contact.IsTarget && contact.Pings < MinPingsToShow)
+                continue;
+
             if (Builder.Length > 0)
                 Builder.Append('\n');
 
-            string tag = HasLaunched(contact.Emitter, warning) ? "LAUNCH"
-                : contact.IsTarget ? "LOCK"
-                : "SEARCH";
-            Builder.Append("Radar [").Append(EmitterName(contact.Emitter)).Append("] ").Append(tag);
+            Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] ");
+            if (launched)
+                Builder.Append("LAUNCH");
+            else if (contact.IsTarget)
+                Builder.Append("LOCK");
+            else
+                Builder.Append('x').Append(contact.Pings);
         }
     }
 
@@ -259,10 +296,27 @@ internal static class ThreatReadout
             : emitter.name;
     }
 
-    private static void Clear()
+    private static void Write(string element, Color? colour)
+    {
+        if (Builder.Length == 0)
+        {
+            Clear(element);
+            return;
+        }
+
+        Text readout = Overlay.Element(element);
+        if (readout == null)
+            return;
+
+        readout.text = Builder.ToString();
+        if (colour.HasValue)
+            readout.color = colour.Value;
+    }
+
+    private static void Clear(string element)
     {
         // Peek, not Element: blanking an empty readout must not build one.
-        Text readout = Overlay.Peek(ElementName);
+        Text readout = Overlay.Peek(element);
         if (readout != null && readout.text.Length > 0)
             readout.text = string.Empty;
     }
@@ -277,7 +331,7 @@ internal static class RadarWarningSweepPatch
 {
     private static void Prefix(Aircraft.OnRadarWarning radarSource)
     {
-        if (Plugin.RadarTags.Value && radarSource.detected)
+        if (Plugin.On(Plugin.RadarTags) && radarSource.detected)
             ThreatReadout.OnSweep(radarSource.emitter, radarSource.isTarget);
     }
 }
@@ -293,5 +347,5 @@ internal static class RadarWarningSweepPatch
 [HarmonyPatch(typeof(RadarWarning), "ShowDirectionalWarning")]
 internal static class StockRadarWarningIconPatch
 {
-    private static bool Prefix() => !Plugin.HideStockRadarWarning.Value;
+    private static bool Prefix() => !Plugin.On(Plugin.HideStockRadarWarning);
 }

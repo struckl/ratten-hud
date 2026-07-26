@@ -14,28 +14,39 @@ duplicates a callout, and neither plugin depends on the other.
 
 ## Threat readouts
 
-One threat block **on the glass**, drawn exactly like the fuel time and climb
-rate readouts: a clone of a real HUD label, in the HUD font and your HUD
-colour, sitting inside the projected HUD with the flight readouts rather than
-over the map. The game's own threat list above the map is left exactly as it
-is — this is the same information said where you are actually looking.
+Two threat readouts **on the glass**, drawn exactly like the fuel time and
+climb rate readouts: clones of a real HUD label, in the HUD font, sitting
+inside the projected HUD with the flight readouts rather than over the map. The
+game's own threat list above the map is left exactly as it is — this is the
+same information said where you are actually looking.
+
+Missile warnings are a red block centred just above the weapon hint (where
+`SHOOT` and `OUT OF RANGE` appear), because that is where you are looking when
+the answer matters. The block grows upwards: the soonest impact is always the
+fixed bottom line.
 
 ```
-Missile [IR] 2.0km  FLARE  2.3s
-Missile [ARH] 5.2km  NOTCH  9.4s
-Radar [MIG-29] LOCK
-Radar [RDR] SEARCH
+[ARH] 5.2km  NOTCH  9.4s
+[IR] 2.0km  FLARE  2.3s
 ```
 
-It sits in the right-hand flight column by default — the layout table pulls the
-altitude block up under the climb rate (`Altitude:0,28`), and the threat block
-takes the space that frees below it. It moves via the layout table as `Threats`
-(e.g. `Elements = Threats:100,-50`).
+Radar warnings list in the right-hand flight column — the layout table pulls
+the altitude block up under the climb rate (`Altitude:0,28`), and the radar
+list takes the space that frees below it:
+
+```
+[MIG-29] LOCK
+[RDR] x3
+```
+
+There are no `Missile`/`Radar` prefixes: the bracketed code and the tag already
+say it, and short lines read faster in combat. Both blocks move via the layout
+table, as `Missiles` and `Threats` respectively (e.g. `Elements = Threats:100,-50`).
 
 ### Missile defeat hint and time to impact
 
-One line per inbound missile, soonest impact first, with the countermeasure
-that defeats the seeker and a live countdown:
+One line per inbound missile, with the countermeasure that defeats the seeker
+and a live countdown:
 
 | Seeker | Hint |
 | --- | --- |
@@ -56,19 +67,23 @@ defeated.
 ### Radar warning tags
 
 The stock RWR draws an undifferentiated arrow per emitter: something is painting
-you, but not what, and not how far along it is. This lists each emitter under
-the missile lines, tagged by state and named by unit type:
+you, but not what, and not how far along it is. This lists each emitter in the
+right-hand flight column, tagged by state and named by unit type:
 
 | Tag | Meaning |
 | --- | --- |
-| `Radar [RDR] SEARCH` | Sweeping you, no track. |
-| `Radar [SAM] LOCK` | You are the tracked target. |
-| `Radar [MIG-29] LAUNCH` | A missile currently inbound was fired by this emitter. |
+| `[RDR] x3` | Sweeping you, no track — pinged three times recently. |
+| `[SAM] LOCK` | You are the tracked target. |
+| `[MIG-29] LAUNCH` | A missile currently inbound was fired by this emitter. |
 
-Shooters sort first, then trackers, then everything merely sweeping — always
-below the missile lines, which are more urgent. Contacts age out four seconds
-after their last sweep, matching the lifetime the game gives its own warning
-icons.
+A radar that pings you once and never again is noise, so a single ping is not
+shown at all — the list starts at `x2`. A lock or a launch shows immediately,
+however fresh the contact.
+
+Shooters sort first, then trackers, then everything merely sweeping. Contacts
+age out four seconds after their last sweep, matching the lifetime the game
+gives its own warning icons — which also resets the ping count, so a slow
+scanner that only finds you every five seconds stays off the glass.
 
 `HideStockRadarWarning` suppresses the game's own directional wedges so the
 tagged list is the only radar warning display. It gates icon creation only —
@@ -154,15 +169,15 @@ while 12, 20, 22, 25, 30, 46, 49, 67 and 81 are all distinct.
 
 | Key | Default | Effect |
 | --- | --- | --- |
-| `ContactGlyphs` | `true` | The symbols. |
-| `GlyphFriendlyAircraft` | `true` | Mark your own faction too. |
-| `GlyphScale` | `0.2` | Symbol size as a fraction of the marker. |
+| `Aircraft type symbols` | `true` | The symbols. |
+| `Symbols on friendly aircraft` | `true` | Mark your own faction too. |
+| `Symbol size` | `0.2` | Symbol size as a fraction of the marker. |
 
 Inside the icon it costs no space at all — the triangle was already there. This
 started as a label beside each marker, which is exactly the mistake it looks
 like once a dozen contacts are each trailing text.
 
-`GlyphScale` follows your HUD icon size and the marker's own distance shrink, so
+`Symbol size` follows your HUD icon size and the marker's own distance shrink, so
 a far contact gets a smaller symbol and below five pixels gets none rather than
 a smudge. It is read every frame, so editing it while the game runs resizes the
 symbols as you save — no restart to find the size you want.
@@ -202,7 +217,7 @@ The matching voice callouts ("fuel low", "bingo fuel") live in
 The objective overlay's name-and-range text is hidden by default, leaving just
 the circle, the dot and the off-screen pointer.
 
-| `ObjectiveLabel` | Result |
+| `Objective label` | Result |
 | --- | --- |
 | `Hidden` *(default)* | Circle only, no text. |
 | `DistanceOnly` | Range, no objective name. |
@@ -210,7 +225,7 @@ the circle, the dot and the off-screen pointer.
 
 ### Hidden markers
 
-`HiddenMarkerUnits` is a comma-separated, case-insensitive list of units that
+`Hidden unit types` is a comma-separated, case-insensitive list of units that
 get no HUD marker. They stay on the map — this filters
 `CombatHUD.CreateMarker`, and the map draws from `DynamicMap` instead.
 
@@ -229,7 +244,7 @@ One config table controls offset, scale and visibility for the game's HUD
 elements:
 
 ```ini
-Elements = Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false
+Element layout = Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false
 ```
 
 Each entry is `Name:xOffset,yOffset[,scale][,visible]`. Positive Y is up, offsets
@@ -267,27 +282,29 @@ first, or the readout moves twice.
 ## Configuration
 
 Every feature has its own switch in
-`BepInEx/config/dev.sewerlabs.rattenhud.cfg`, written on first run.
+`BepInEx/config/dev.sewerlabs.rattenhud.cfg`, written on first run. `Enable
+mod` in `1. General` is the master switch for everything at once.
 
 | Section | Key | Default |
 | --- | --- | --- |
-| Threats | `MissileDefeatHint` | `true` |
-| Threats | `ImpactCountdown` | `true` |
-| Threats | `RadarWarningTags` | `true` |
-| Threats | `HideStockRadarWarning` | `false` |
-| Threats | `CountermeasureColours` | `true` |
-| Weapons | `ShootCue` | `true` |
-| Weapons | `TargetDataBlock` | `true` |
-| Contacts | `ContactGlyphs` | `true` |
-| Contacts | `GlyphFriendlyAircraft` | `true` |
-| Contacts | `GlyphScale` | `0.2` |
-| Flight | `FuelTimeReadout` | `true` |
-| Flight | `FuelTimeUpdateRate` | `10` |
-| Layout | `Enabled` | `true` |
-| Layout | `Elements` | `Climbrate:0,40` |
-| Declutter | `ObjectiveLabel` | `Hidden` |
-| Declutter | `HideMarkers` | `true` |
-| Declutter | `HiddenMarkerUnits` | `pilot` |
+| 1. General | `Enable mod` | `true` |
+| 2. Threat warnings | `Missile defeat hint` | `true` |
+| 2. Threat warnings | `Impact countdown` | `true` |
+| 2. Threat warnings | `Radar warning tags` | `true` |
+| 2. Threat warnings | `Hide stock radar arrows` | `false` |
+| 2. Threat warnings | `Countermeasure colours` | `true` |
+| 3. Weapons | `Extended shoot cue` | `true` |
+| 3. Weapons | `Target data block` | `true` |
+| 4. Contacts | `Aircraft type symbols` | `true` |
+| 4. Contacts | `Symbols on friendly aircraft` | `true` |
+| 4. Contacts | `Symbol size` | `0.2` |
+| 5. Flight info | `Fuel time readout` | `true` |
+| 5. Flight info | `Fuel check interval (seconds)` | `10` |
+| 6. HUD layout | `Enable custom layout` | `true` |
+| 6. HUD layout | `Element layout` | `Climbrate:0,40;Altitude:0,28` |
+| 7. Declutter | `Objective label` | `Hidden` |
+| 7. Declutter | `Hide chosen unit markers` | `true` |
+| 7. Declutter | `Hidden unit types` | `pilot` |
 
 The layout table re-applies live when the config file changes, so you can nudge
 elements without restarting.
