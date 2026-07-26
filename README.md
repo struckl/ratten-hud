@@ -14,18 +14,26 @@ duplicates a callout, and neither plugin depends on the other.
 
 ## Threat readouts
 
-Every threat readout lives inside the game's own threat list — the stack of
-`Missile [ARH] 5.2km` lines the game already draws — so it inherits the stock
-font, layout, colours and flash instead of floating over the HUD.
+One threat block **on the glass**, drawn exactly like the fuel time and climb
+rate readouts: a clone of a real HUD label, in the HUD font and your HUD
+colour, sitting inside the projected HUD with the flight readouts rather than
+over the map. The game's own threat list above the map is left exactly as it
+is — this is the same information said where you are actually looking.
+
+```
+Missile [IR] 2.0km  FLARE  2.3s
+Missile [ARH] 5.2km  NOTCH  9.4s
+Radar [MIG-29] LOCK
+Radar [RDR] SEARCH
+```
+
+It sits under the fuel column by default and moves via the layout table as
+`Threats` (e.g. `Elements = Threats:100,-50`).
 
 ### Missile defeat hint and time to impact
 
-Each of the game's missile threat lines is extended in place with the
-countermeasure that defeats the seeker, and a live time to impact:
-
-```
-Missile [IR] 2.1km  FLARE  4.2s
-```
+One line per inbound missile, soonest impact first, with the countermeasure
+that defeats the seeker and a live countdown:
 
 | Seeker | Hint |
 | --- | --- |
@@ -35,8 +43,7 @@ Missile [IR] 2.1km  FLARE  4.2s
 | ARAD | `RADAR OFF` |
 
 An unrecognised seeker type — a new game version, say — still gets a generic
-`DEFEND` rather than silently vanishing. The line keeps the game's own threat
-colouring: yellow while the seeker searches, flashing red once it locks.
+`DEFEND` rather than silently vanishing.
 
 The closure maths behind the countdown is the same one the game's own AI pilot
 uses to decide when to break and dispense, so the number agrees with what the
@@ -47,20 +54,19 @@ defeated.
 ### Radar warning tags
 
 The stock RWR draws an undifferentiated arrow per emitter: something is painting
-you, but not what, and not how far along it is. This adds one line per emitter
-to the same threat list, cloned from the game's own threat entry prefab and
-coloured in the game's own threat vocabulary:
+you, but not what, and not how far along it is. This lists each emitter under
+the missile lines, tagged by state and named by unit type:
 
-| Tag | Meaning | Style |
-| --- | --- | --- |
-| `Radar [MIG-29] SEARCH` | Sweeping you, no track. | Yellow, like a searching seeker. |
-| `Radar [SAM] LOCK` | You are the tracked target. | The red/green flash of a locked seeker. |
-| `Radar [MIG-29] LAUNCH` | A missile currently inbound was fired by this emitter. | Red blink, the missile warning light's cadence. |
+| Tag | Meaning |
+| --- | --- |
+| `Radar [RDR] SEARCH` | Sweeping you, no track. |
+| `Radar [SAM] LOCK` | You are the tracked target. |
+| `Radar [MIG-29] LAUNCH` | A missile currently inbound was fired by this emitter. |
 
 Shooters sort first, then trackers, then everything merely sweeping — always
-below the game's own missile entries, which are more urgent. Contacts age out
-four seconds after their last sweep, matching the lifetime the game gives its
-own warning icons.
+below the missile lines, which are more urgent. Contacts age out four seconds
+after their last sweep, matching the lifetime the game gives its own warning
+icons.
 
 `HideStockRadarWarning` suppresses the game's own directional wedges so the
 tagged list is the only radar warning display. It gates icon creation only —
@@ -230,10 +236,10 @@ game's 30 HUD elements can be placed this way; `ArtificialHorizon` and
 `GearIndicator` are the two exceptions, being the only elements that do not
 route through the shared settings refresh this hooks.
 
-This plugin's own readouts live inside game elements — the threat list, the
-hint label, the target block, the fuel gauge — so they move and scale with
-their hosts rather than having entries of their own. The contact labels follow
-their markers around the glass and have their own `LabelTextScale` instead.
+This plugin's threat readout registers as `Threats` and can be moved and
+scaled like any game element. The other readouts live inside game elements —
+the hint label, the target block, the fuel gauge — so they move and scale with
+their hosts rather than having entries of their own.
 
 #### The climb rate default
 
@@ -285,14 +291,19 @@ setting keeps meaning what it says.
 
 ### How the readouts are drawn
 
-There is no overlay canvas and nothing floats over the screen. Every readout
-either **extends text the game already wrote** (the threat list entries, the
-target block, the shoot hint) or is a **clone of a real HUD label parented next
-to its host** (the fuel time under the fuel gauge, the radar tags in the threat
-list, the contact labels in the icon layer). Extending in place inherits the
-font, the player's HUD colour and text size, the material, the projection and
-the game's own flash cadences for free — which is why every readout sits on the
-glass like the game drew it.
+Nothing floats over the screen on a canvas of this plugin's own. Every readout
+either **extends text the game already wrote** (the target block, the shoot
+hint) or is a **clone of a real HUD label parented into the HUD canvas** (the
+threat block, the fuel time under the fuel gauge). Cloning a live label
+inherits the HUD font, the player's HUD colour and text size, the material and
+the projection for free — which is why every readout sits on the glass like
+the game drew it.
+
+The clone source is the climb rate label, taken from `HUDApp.RefreshSettings`:
+a plain single line of body text present on every airframe, so the copy is not
+styled as something outsized or pre-coloured for a warning. If a threat block
+ever goes missing, the plugin logs one diagnostic line the first time you are
+in a cockpit, naming every gate it can be stuck behind.
 
 Readout text is deliberately **ASCII only**. The HUD font is the game's own and
 has no reason to carry an interpunct, an arrow or a multiplication sign, and a

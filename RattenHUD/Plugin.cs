@@ -10,7 +10,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string Guid = "dev.sewerlabs.rattenhud";
     public const string Name = "Ratten HUD";
-    public const string Version = "2.0.0";
+    public const string Version = "2.1.0";
 
     internal static new ManualLogSource Logger;
 
@@ -26,11 +26,9 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> TargetDataBlock;
 
     // Contact readouts
-    internal static ConfigEntry<bool> ContactLabels;
-    internal static ConfigEntry<bool> ContactLabelFriendlies;
-    internal static ConfigEntry<bool> ContactLabelRange;
-    internal static ConfigEntry<float> ContactLabelMaxRange;
-    internal static ConfigEntry<float> ContactLabelScale;
+    internal static ConfigEntry<bool> ContactGlyphs;
+    internal static ConfigEntry<bool> ContactGlyphFriendlies;
+    internal static ConfigEntry<float> ContactGlyphScale;
 
     // Flight readouts
     internal static ConfigEntry<bool> FuelTimeReadout;
@@ -53,6 +51,7 @@ public class Plugin : BaseUnityPlugin
         ElementLayout.Initialize();
         Declutter.Initialize();
         FuelTime.Initialize();
+        ThreatReadout.Initialize();
 
         new Harmony(Guid).PatchAll();
         Logger.LogInfo($"{Name} {Version} loaded.");
@@ -60,7 +59,9 @@ public class Plugin : BaseUnityPlugin
 
     private void Update()
     {
-        RadarWarningTags.Tick();
+        Overlay.LogDiagnosticsOnce();
+
+        ThreatReadout.Tick();
         RattenHUD.ShootCue.Tick();
     }
 
@@ -68,16 +69,18 @@ public class Plugin : BaseUnityPlugin
     {
         MissileDefeatHint = Config.Bind(
             "Threats", "MissileDefeatHint", true,
-            "Append the countermeasure that defeats the seeker to each entry in "
-            + "the game's missile threat list: FLARE, NOTCH, HIDE or RADAR OFF.");
+            "List inbound missiles on the HUD glass with the countermeasure "
+            + "that defeats each seeker: FLARE, NOTCH, HIDE or RADAR OFF. The "
+            + "readout sits with the flight readouts and moves via the layout "
+            + "table as 'Threats'.");
         ImpactCountdown = Config.Bind(
             "Threats", "ImpactCountdown", true,
-            "Append the estimated time to impact to each entry in the game's "
-            + "missile threat list, while the missile is actually gaining.");
+            "Add the estimated time to impact to each missile line on the HUD "
+            + "glass, while the missile is actually gaining.");
         RadarTags = Config.Bind(
             "Threats", "RadarWarningTags", true,
-            "Add radar emitters painting you to the game's threat list, tagged "
-            + "SEARCH / LOCK / LAUNCH and named by unit type.");
+            "List radar emitters painting you under the missile lines on the "
+            + "HUD glass, tagged SEARCH / LOCK / LAUNCH and named by unit type.");
         HideStockRadarWarning = Config.Bind(
             "Threats", "HideStockRadarWarning", false,
             "Suppress the game's own directional radar warning arrows, leaving "
@@ -99,31 +102,25 @@ public class Plugin : BaseUnityPlugin
             "Weapons", "TargetDataBlock", true,
             "Add closure, aspect and altitude to the selected target readout.");
 
-        ContactLabels = Config.Bind(
-            "Contacts", "ContactLabels", true,
-            "Write each aircraft's type code beside its HUD marker. Ground units "
-            + "have icons that differ; every aircraft draws the same triangle, so "
-            + "without this the only way to tell a bomber from a fighter is to "
-            + "select it and read the target block.");
-        ContactLabelFriendlies = Config.Bind(
-            "Contacts", "LabelFriendlyAircraft", false,
-            "Also label aircraft of your own faction. Off by default: friendlies "
-            + "are already a different colour, and in a busy sky they are most of "
-            + "the clutter.");
-        ContactLabelRange = Config.Bind(
-            "Contacts", "LabelRange", true,
-            "Include the range to the contact after the type code.");
-        ContactLabelMaxRange = Config.Bind(
-            "Contacts", "LabelMaxRange", 25000f,
-            "Metres. Contacts further out than this keep their marker but lose "
-            + "the label, so a busy radar picture does not fill the glass with "
-            + "text. 0 removes the limit.");
-        ContactLabelScale = Config.Bind(
-            "Contacts", "LabelTextScale", 0.6f,
-            "Label size relative to your HUD text size. The labels are anchored "
-            + "to the markers rather than to a fixed place on the glass, so the "
-            + "layout table below does not apply to them; this is the only size "
-            + "control they have.");
+        ContactGlyphs = Config.Bind(
+            "Contacts", "ContactGlyphs", true,
+            "Draw the number out of each aircraft's type code inside its HUD "
+            + "marker: 12 for an FS-12, 46 for an SAH-46. Ground units have icons "
+            + "that differ; every aircraft draws the same triangle, so without "
+            + "this the only way to tell a bomber from a fighter is to select it "
+            + "and read the target block.");
+        ContactGlyphFriendlies = Config.Bind(
+            "Contacts", "GlyphFriendlyAircraft", true,
+            "Also mark aircraft of your own faction. The symbol sits inside a "
+            + "marker that was on the glass anyway, so friendlies cost no extra "
+            + "space -- but knowing which of them is the tanker still helps.");
+        ContactGlyphScale = Config.Bind(
+            "Contacts", "GlyphScale", 0.5f,
+            "Symbol size as a fraction of the marker it sits in, so it follows "
+            + "your HUD icon size and shrinks with a distant contact. Below "
+            + "roughly a seventh of the HUD text size the symbol is dropped "
+            + "rather than drawn as a smudge, so a very small value turns it off "
+            + "for far contacts first.");
 
         FuelTimeReadout = Config.Bind(
             "Flight", "FuelTimeReadout", true,
@@ -148,6 +145,7 @@ public class Plugin : BaseUnityPlugin
             + "WeaponIndicator, and so on. ArtificialHorizon and GearIndicator "
             + "cannot be moved this way; they are the only two HUD elements that "
             + "do not route through the shared settings refresh.\n"
+            + "This plugin's threat readout moves as 'Threats'.\n"
             + "The default Climbrate:0,40 is the old MKMods "
             + "ClimbRateVerticalOffset, which now lives here: the stock climb "
             + "rate readout sits low enough to collide with its neighbours.\n"
