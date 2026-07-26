@@ -132,41 +132,44 @@ competing for the same space.
 
 ## Contact readouts
 
-### Contact labels
+### Contact symbols
 
 Ground units are told apart at a glance because their icons differ — a tank does
-not look like a radar. Every aircraft draws the same triangle, so the only way to
-find out what is out there is to select a contact and read the target block, one
-contact at a time.
+not look like a radar. Every aircraft draws the same triangle, so a fighter, a
+bomber and the AWACS behind them are one shape repeated, and the only way to
+tell them apart is to select each in turn and read the target block.
 
-This writes the type code beside each aircraft marker:
+This puts the number out of the type code inside the marker:
 
 ```
-        ▽ KR-67  12.4km
-                     ▽ FS-12  18km
-   ▽ EW-25  22km
+   /12\        /81\        /25\        /46\
+   FS-12       SFB-81      EW-25       SAH-46
 ```
 
-A four-ship now reads as four airframes without touching the target list — and
-the AWACS orbiting behind them stops looking like a fighter.
+Numbers rather than letters, because the roster collides on its letters and not
+on its numbers: FS-12 and FS-20 are both `F`, SAH-46 and SFB-81 are both `S`,
+while 12, 20, 22, 25, 30, 46, 49, 67 and 81 are all distinct.
 
 | Key | Default | Effect |
 | --- | --- | --- |
-| `ContactLabels` | `true` | The labels. |
-| `LabelFriendlyAircraft` | `false` | Label your own faction too. |
-| `LabelRange` | `true` | Range after the type code. |
-| `LabelMaxRange` | `25000` | Metres. Further out keeps the marker, drops the text. `0` for no limit. |
-| `LabelTextScale` | `0.6` | Size relative to your HUD text. |
+| `ContactGlyphs` | `true` | The symbols. |
+| `GlyphFriendlyAircraft` | `true` | Mark your own faction too. |
+| `GlyphScale` | `0.3` | Symbol size as a fraction of the marker. |
 
-The code is the same `definition.code` the game's own target block prints, and
-nothing here reveals a contact the game had already decided not to draw: the
-marker was on the glass either way, this only says what it is. The selected
-target gets no label, because the game is already annotating that one.
+Inside the icon it costs no space at all — the triangle was already there. This
+started as a label beside each marker, which is exactly the mistake it looks
+like once a dozen contacts are each trailing text.
 
-Labels inherit their marker's colour, so they dim with a stale track and flicker
-under jamming exactly as the icon does. They are anchored to the markers rather
-than to a place on the glass, so the layout table below does not reach them —
-`LabelTextScale` is their only size control.
+`GlyphScale` follows your HUD icon size and the marker's own distance shrink, so
+a far contact gets a smaller symbol and below six pixels gets none rather than a
+smudge. Two digits have to fit inside a triangle, so it wants to stay well under
+half.
+
+Symbols inherit their marker's colour and dim with a stale track and flicker
+under jamming exactly as the icon does. The selected target gets none, because
+the game already prints its full code on that marker. Nothing here reveals a
+contact the game had decided not to draw: the marker was on the glass either
+way, and the number is the same `definition.code` the target block shows.
 
 ## Flight readouts
 
@@ -264,11 +267,9 @@ Every feature has its own switch in
 | Threats | `CountermeasureColours` | `true` |
 | Weapons | `ShootCue` | `true` |
 | Weapons | `TargetDataBlock` | `true` |
-| Contacts | `ContactLabels` | `true` |
-| Contacts | `LabelFriendlyAircraft` | `false` |
-| Contacts | `LabelRange` | `true` |
-| Contacts | `LabelMaxRange` | `25000` |
-| Contacts | `LabelTextScale` | `0.6` |
+| Contacts | `ContactGlyphs` | `true` |
+| Contacts | `GlyphFriendlyAircraft` | `true` |
+| Contacts | `GlyphScale` | `0.3` |
 | Flight | `FuelTimeReadout` | `true` |
 | Flight | `FuelTimeUpdateRate` | `10` |
 | Layout | `Enabled` | `true` |

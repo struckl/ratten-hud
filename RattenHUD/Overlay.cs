@@ -158,7 +158,16 @@ internal static class Overlay
         rect.anchorMin = element.Anchor;
         rect.anchorMax = element.Anchor;
         rect.pivot = element.Pivot;
-        rect.localScale = Vector3.one;
+        // The template renders at its font size times every scale above it, and
+        // the clone hangs directly under the canvas root, skipping that parent
+        // chain. Bake the chain into the clone's own scale, or the copy draws
+        // several times larger than the label it was cloned from.
+        Vector3 templateScale = template.rectTransform.lossyScale;
+        Vector3 rootScale = hudRoot.lossyScale;
+        rect.localScale = new Vector3(
+            rootScale.x != 0f ? templateScale.x / rootScale.x : 1f,
+            rootScale.y != 0f ? templateScale.y / rootScale.y : 1f,
+            rootScale.z != 0f ? templateScale.z / rootScale.z : 1f);
         rect.localRotation = Quaternion.identity;
         rect.anchoredPosition = element.Offset;
 

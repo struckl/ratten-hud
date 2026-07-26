@@ -36,7 +36,7 @@ internal static class ContactGlyphs
     /// <summary>Smallest readable glyph, in HUD text units. A marker shrunk into
     /// the distance is left with no symbol rather than an illegible smudge in
     /// the middle of it.</summary>
-    private const int MinimumSize = 7;
+    private const int MinimumSize = 6;
 
     private sealed class Glyph
     {

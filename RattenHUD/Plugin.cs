@@ -115,12 +115,12 @@ public class Plugin : BaseUnityPlugin
             + "marker that was on the glass anyway, so friendlies cost no extra "
             + "space -- but knowing which of them is the tanker still helps.");
         ContactGlyphScale = Config.Bind(
-            "Contacts", "GlyphScale", 0.5f,
+            "Contacts", "GlyphScale", 0.3f,
             "Symbol size as a fraction of the marker it sits in, so it follows "
-            + "your HUD icon size and shrinks with a distant contact. Below "
-            + "roughly a seventh of the HUD text size the symbol is dropped "
-            + "rather than drawn as a smudge, so a very small value turns it off "
-            + "for far contacts first.");
+            + "your HUD icon size and shrinks with a distant contact. Two digits "
+            + "have to fit inside a triangle, so this wants to stay well under "
+            + "half. Below six pixels the symbol is dropped rather than drawn as "
+            + "a smudge, which a small value reaches on far contacts first.");
 
         FuelTimeReadout = Config.Bind(
             "Flight", "FuelTimeReadout", true,
