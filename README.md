@@ -58,6 +58,11 @@ by state and named by unit type:
 Contacts age out four seconds after their last sweep, matching the lifetime the
 game gives its own warning icons.
 
+`HideStockRadarWarning` suppresses the game's own directional wedges so the
+tagged list is the only radar warning display. It gates icon creation only —
+the sweep still runs, so the warning tone and the tags are untouched, unlike
+disabling the receiver outright.
+
 ### Countermeasure state of charge
 
 The stock indicator is green until the moment it runs dry, then grey — no
@@ -209,6 +214,7 @@ Every feature has its own switch in
 | Threats | `MissileBanner` | `true` |
 | Threats | `ImpactCountdown` | `true` |
 | Threats | `RadarWarningTags` | `true` |
+| Threats | `HideStockRadarWarning` | `false` |
 | Threats | `CountermeasureColours` | `true` |
 | Weapons | `ShootCue` | `true` |
 | Weapons | `ShootCueOverlay` | `false` |
@@ -223,6 +229,27 @@ Every feature has its own switch in
 
 The layout table re-applies live when the config file changes, so you can nudge
 elements without restarting.
+
+### Nothing showing up?
+
+**The shoot cue and the countermeasure colours need the game's own Weapons HUD
+turned on** (Settings → HUD → Weapons). Both ride on elements the game does not
+draw at all when it is off, so with `HUDWeapons = 0` you get no `IN RANGE`, no
+countermeasure indicator and no flare count — from the game or from this plugin.
+`PlayerSettings.hudWeapons` is checked deliberately rather than forced, so the
+setting keeps meaning what it says.
+
+The plugin logs one diagnostic line the first time you are in a cockpit, naming
+every gate a missing readout can be stuck behind:
+
+```
+[Info   :Ratten HUD] Overlay: canvas=True, font=LegacyRuntime, elements=4, inCockpit=True, ...
+```
+
+`font=<null>` means the overlay text is drawing with no font, which renders
+nothing. `inCockpit=False` means the canvas readouts are clearing themselves
+every frame. Either way the patch-based readouts carry on working, which is what
+makes the failure look selective.
 
 ## Building
 

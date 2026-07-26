@@ -18,6 +18,7 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> MissileBanner;
     internal static ConfigEntry<bool> ImpactCountdown;
     internal static ConfigEntry<bool> RadarTags;
+    internal static ConfigEntry<bool> HideStockRadarWarning;
     internal static ConfigEntry<bool> CountermeasureColours;
 
     // Weapon readouts
@@ -56,6 +57,11 @@ public class Plugin : BaseUnityPlugin
 
     private void Update()
     {
+        // The elements are built during plugin load, before the scene has a font
+        // to fall back on, so keep trying until one resolves.
+        Overlay.EnsureFonts();
+        Overlay.LogDiagnosticsOnce();
+
         MissileThreatBanner.Tick();
         RadarWarningTags.Tick();
         RattenHUD.ShootCue.Tick();
@@ -75,6 +81,12 @@ public class Plugin : BaseUnityPlugin
             "Threats", "RadarWarningTags", true,
             "List radar emitters painting you, tagged SEARCH / LOCK / LAUNCH and "
             + "named by unit type.");
+        HideStockRadarWarning = Config.Bind(
+            "Threats", "HideStockRadarWarning", false,
+            "Suppress the game's own directional radar warning arrows, leaving "
+            + "the tagged list as the only radar warning display. The warning "
+            + "tone still sounds and the tags are unaffected; only the wedges "
+            + "the game draws around the map go away.");
         CountermeasureColours = Config.Bind(
             "Threats", "CountermeasureColours", true,
             "Colour the countermeasure indicator by remaining load (green, amber, "

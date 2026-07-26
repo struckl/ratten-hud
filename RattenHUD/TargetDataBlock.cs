@@ -41,14 +41,20 @@ internal static class TargetDataBlockPatch
 
         Vector3 losDirection = lineOfSight.normalized;
 
+        // Unit.rb is null for anything without a rigidbody -- structures, static
+        // SAM sites, radars. Those are genuinely stationary, so read them as zero
+        // velocity rather than dropping the readout: closure off our own motion
+        // is still exactly what the pilot wants against a building.
+        Vector3 targetVelocity = target.rb != null ? target.rb.velocity : Vector3.zero;
+
         // Positive closure means the gap is shrinking.
-        float closure = Vector3.Dot(losDirection, ___aircraft.rb.velocity - target.rb.velocity);
+        float closure = Vector3.Dot(losDirection, ___aircraft.rb.velocity - targetVelocity);
 
         // Aspect: 0 degrees is the target pointing straight at us (hot), 180 is
         // straight away (cold). Measured from the target's nose to the reciprocal
         // of the line of sight.
-        Vector3 targetHeading = target.rb.velocity.sqrMagnitude > 1f
-            ? target.rb.velocity.normalized
+        Vector3 targetHeading = targetVelocity.sqrMagnitude > 1f
+            ? targetVelocity.normalized
             : target.transform.forward;
         float aspect = Vector3.Angle(targetHeading, -losDirection);
 

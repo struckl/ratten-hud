@@ -183,3 +183,17 @@ internal static class RadarWarningSweepPatch
             RadarWarningTags.OnSweep(radarSource.emitter, radarSource.isTarget);
     }
 }
+
+/// <summary>
+/// Suppresses the stock directional arrows, for players who would rather read
+/// the tagged list than the undifferentiated wedges.
+///
+/// This gates icon creation only. The sweep itself still runs, so the warning
+/// tone and the tag list above are untouched -- unlike disabling the whole
+/// receiver, which would take the audio with it.
+/// </summary>
+[HarmonyPatch(typeof(RadarWarning), "ShowDirectionalWarning")]
+internal static class StockRadarWarningIconPatch
+{
+    private static bool Prefix() => !Plugin.HideStockRadarWarning.Value;
+}
