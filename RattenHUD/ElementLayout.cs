@@ -197,14 +197,31 @@ internal static class ElementLayout
 [HarmonyPatch(typeof(HUDApp), nameof(HUDApp.RefreshSettings))]
 internal static class HUDAppLayoutPatch
 {
+    // HUDApp.type: HUD (projected on the glass), HMD (fixed to the screen) or
+    // MFD. The game builds some readouts in more than one flavour -- Bearing
+    // exists both on the glass and as the screen-fixed box at the top -- and
+    // they share a component name, so the flavour has to be part of the key or
+    // a rule could only ever hit both at once.
+    private static readonly System.Reflection.FieldInfo AppTypeField =
+        AccessTools.Field(typeof(HUDApp), "type");
+
     private static void Postfix(HUDApp __instance)
     {
         // Also the one place that reliably hands us a live HUD label to clone.
         Overlay.OfferTemplate(__instance);
 
-        if (!Plugin.LayoutEnabled.Value)
+        if (!Plugin.On(Plugin.LayoutEnabled))
             return;
-        if (__instance.transform is RectTransform rect)
-            ElementLayout.Apply(__instance.GetType().Name, rect);
+        if (!(__instance.transform is RectTransform rect))
+            return;
+
+        // Glass elements keep the bare component name everyone already uses;
+        // the other flavours get a suffix: Bearing.HMD, and so on.
+        string name = __instance.GetType().Name;
+        string kind = AppTypeField.GetValue(__instance).ToString();
+        if (kind != "HUD")
+            name = name + "." + kind;
+
+        ElementLayout.Apply(name, rect);
     }
 }

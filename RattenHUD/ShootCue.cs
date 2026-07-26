@@ -27,6 +27,7 @@ internal static class ShootCue
     private const float StaleAfterSeconds = 0.35f;
 
     private static float lastRefresh = float.NegativeInfinity;
+    private static bool loggedOnce;
 
     // The game's own hint label while we are forcing it on, kept so a stale cue
     // can hand it back rather than leaving our text stranded on the HUD.
@@ -72,8 +73,12 @@ internal static class ShootCue
 
         if (!requirementsMet || !PlayerSettings.hudWeapons)
         {
-            // The game's own rejection reason is already correct; leave it alone.
-            drivenHint = null;
+            // The game's own rejection reason is already correct -- but if we
+            // had forced the label on, hand it back off. The game's OUT OF ARC
+            // and TOO SLOW branches write their text without touching enabled,
+            // so an enabled we leave behind would put a hint on the glass the
+            // stock game would not have shown.
+            Release();
             return;
         }
 
@@ -89,6 +94,13 @@ internal static class ShootCue
         hint.text = "IN RANGE";
         hint.enabled = true;
         drivenHint = hint;
+
+        if (!loggedOnce)
+        {
+            loggedOnce = true;
+            Plugin.Logger.LogInfo(
+                $"ShootCue: first IN RANGE shown ({targetDist:F0}m, NEZ {noEscapeRange:F0}m).");
+        }
     }
 }
 
@@ -102,7 +114,7 @@ internal static class ShootCuePatch
         float ___noEscapeRange,
         Text ___hint)
     {
-        if (!Plugin.ShootCue.Value)
+        if (!Plugin.On(Plugin.ShootCue))
             return;
 
         // Nothing selected or no ammo: the panel is hidden and must stay that way.

@@ -22,6 +22,7 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> ImpactCountdown;
     internal static ConfigEntry<bool> RadarTags;
     internal static ConfigEntry<bool> HideStockRadarWarning;
+    internal static ConfigEntry<bool> HideStockThreatList;
     internal static ConfigEntry<bool> CountermeasureColours;
 
     // Weapon readouts
@@ -106,6 +107,12 @@ public class Plugin : BaseUnityPlugin
             "Remove the game's own radar warning wedges around the minimap, so the "
             + "tag list above becomes your only radar warning display. The audio "
             + "warning tone stays.");
+        HideStockThreatList = Config.Bind(
+            "2. Threat warnings", "Hide stock missile list", true,
+            "Remove the game's own missile warning lines over the minimap -- "
+            + "the red block on the HUD replaces them. Only the text goes; the "
+            + "notch line on the map, the notch indicator and the alarm sound "
+            + "all stay.");
         CountermeasureColours = Config.Bind(
             "2. Threat warnings", "Countermeasure colours", true,
             "Colour the flare/chaff counter by how much is left (green, amber, "
@@ -157,7 +164,8 @@ public class Plugin : BaseUnityPlugin
             + "individual HUD elements. Off: everything sits where the game "
             + "puts it.");
         Layout = Config.Bind(
-            "6. HUD layout", "Element layout", "Climbrate:0,40;Altitude:0,28",
+            "6. HUD layout", "Element layout",
+            "Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false",
             "Advanced setting: where each HUD element sits. One entry per "
             + "element, separated by semicolons.\n"
             + "Format: Name:right,up[,scale][,visible] -- offsets in pixels on a "
@@ -168,12 +176,17 @@ public class Plugin : BaseUnityPlugin
             + "countermeasure counter hidden.)\n"
             + "Element names match the game's HUD components: Climbrate, "
             + "Altitude, SpeedGauge, FuelGauge, CountermeasureIndicator, "
-            + "WeaponIndicator, and so on. This mod's radar list moves as "
-            + "'Threats' and its missile warnings as 'Missiles'. "
-            + "ArtificialHorizon and GearIndicator cannot be moved.\n"
+            + "WeaponIndicator, and so on. Screen-fixed variants of a readout "
+            + "get a suffix: Bearing.HMD is the boxed heading at the top of "
+            + "the screen, Bearing the one on the glass. This mod's radar "
+            + "list moves as 'Threats' and its missile warnings as "
+            + "'Missiles'. ArtificialHorizon and GearIndicator cannot be "
+            + "moved.\n"
             + "The default moves the climb rate up (in the stock layout it "
-            + "collides with its neighbours) and tucks the altitude block "
-            + "underneath it, so the threat readout fits below.\n"
+            + "collides with its neighbours), tucks the altitude block "
+            + "underneath it so the threat readout fits below, and hides the "
+            + "screen-fixed heading box, which duplicates the heading under "
+            + "the compass tape.\n"
             + "If you also run MKMods, set its ClimbRateVerticalOffset to 0 "
             + "first, or the climb rate moves twice.");
 

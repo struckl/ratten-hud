@@ -57,9 +57,18 @@ internal static class Overlay
     /// ordinary body styling rather than something outsized or coloured for a
     /// warning.
     /// </summary>
+    private static readonly System.Reflection.FieldInfo AppTypeField =
+        HarmonyLib.AccessTools.Field(typeof(HUDApp), "type");
+
     public static void OfferTemplate(HUDApp app)
     {
         if (template != null || !(app is Climbrate))
+            return;
+
+        // Only the glass-projected flavour will do. The game also builds
+        // screen-fixed HMD variants of its readouts; cloning one of those
+        // would put every readout on the visor instead of the glass.
+        if (AppTypeField.GetValue(app).ToString() != "HUD")
             return;
 
         Text found = app.GetComponentInChildren<Text>(includeInactive: true);

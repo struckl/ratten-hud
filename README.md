@@ -16,9 +16,10 @@ duplicates a callout, and neither plugin depends on the other.
 
 Two threat readouts **on the glass**, drawn exactly like the fuel time and
 climb rate readouts: clones of a real HUD label, in the HUD font, sitting
-inside the projected HUD with the flight readouts rather than over the map. The
-game's own threat list above the map is left exactly as it is — this is the
-same information said where you are actually looking.
+inside the projected HUD with the flight readouts rather than over the map.
+They replace the game's own missile lines over the minimap, which are hidden
+by default (`Hide stock missile list`) — only that text goes; the notch line
+on the map, the notch indicator and the alarm sound all stay.
 
 Missile warnings are a red block centred just above the weapon hint (where
 `SHOOT` and `OUT OF RANGE` appear), because that is where you are looking when
@@ -80,10 +81,18 @@ A radar that pings you once and never again is noise, so a single ping is not
 shown at all — the list starts at `x2`. A lock or a launch shows immediately,
 however fresh the contact.
 
-Shooters sort first, then trackers, then everything merely sweeping. Contacts
-age out four seconds after their last sweep, matching the lifetime the game
-gives its own warning icons — which also resets the ping count, so a slow
-scanner that only finds you every five seconds stays off the glass.
+Pings count within a 20-second memory, long enough to hold two sweeps of a
+slow search radar; a sweep line stays up for 10 seconds after its last ping. A
+`LOCK` is only trusted for 4 seconds — a tracking radar paints its target
+continuously, so a lock that has gone quiet longer than that has in truth lost
+you, and the line falls back to the ping tally rather than claiming a track
+that is gone. Shooters sort first, then trackers, then everything merely
+sweeping.
+
+The list is pinned by its right edge, just inside the throttle column, and
+grows leftwards — emitter codes vary in length, and a left-pinned line long
+enough would run off the edge of the glass, while the space towards the centre
+is empty sky.
 
 `HideStockRadarWarning` suppresses the game's own directional wedges so the
 tagged list is the only radar warning display. It gates icon creation only —
@@ -265,19 +274,29 @@ game's 30 HUD elements can be placed this way; `ArtificialHorizon` and
 `GearIndicator` are the two exceptions, being the only elements that do not
 route through the shared settings refresh this hooks.
 
-This plugin's threat readout registers as `Threats` and can be moved and
-scaled like any game element. The other readouts live inside game elements —
-the hint label, the target block, the fuel gauge — so they move and scale with
-their hosts rather than having entries of their own.
+Some readouts exist in more than one flavour: projected on the glass, or fixed
+to the screen (HMD). The screen-fixed variants get a suffix, so `Bearing` is
+the heading on the glass and `Bearing.HMD` the boxed heading at the top of the
+screen — without the suffix a rule could only ever hit both at once.
 
-#### The climb rate default
+This plugin's radar list registers as `Threats` and its missile warnings as
+`Missiles`; both move and scale like any game element. The other readouts live
+inside game elements — the hint label, the target block, the fuel gauge — so
+they move and scale with their hosts rather than having entries of their own.
 
-The table defaults to `Climbrate:0,40`. That is the old MKMods
-`ClimbRateVerticalOffset`, which now lives here — the stock climb rate readout
-sits low enough to collide with its neighbours.
+#### The defaults
 
-If you still run MKMods alongside this, set its `ClimbRateVerticalOffset` to `0`
-first, or the readout moves twice.
+The table defaults to `Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false`:
+
+- `Climbrate:0,40` is the old MKMods `ClimbRateVerticalOffset`, which now
+  lives here — the stock climb rate readout sits low enough to collide with
+  its neighbours. If you still run MKMods alongside this, set its
+  `ClimbRateVerticalOffset` to `0` first, or the readout moves twice.
+- `Altitude:0,28` closes the gap that move opens, tucking the altitude block
+  directly under the climb rate so the radar list fits below.
+- `Bearing.HMD:0,0,1,false` hides the screen-fixed heading box at the top of
+  the screen, which duplicates the heading already shown under the compass
+  tape.
 
 ## Configuration
 
@@ -292,6 +311,7 @@ mod` in `1. General` is the master switch for everything at once.
 | 2. Threat warnings | `Impact countdown` | `true` |
 | 2. Threat warnings | `Radar warning tags` | `true` |
 | 2. Threat warnings | `Hide stock radar arrows` | `false` |
+| 2. Threat warnings | `Hide stock missile list` | `true` |
 | 2. Threat warnings | `Countermeasure colours` | `true` |
 | 3. Weapons | `Extended shoot cue` | `true` |
 | 3. Weapons | `Target data block` | `true` |
@@ -301,7 +321,7 @@ mod` in `1. General` is the master switch for everything at once.
 | 5. Flight info | `Fuel time readout` | `true` |
 | 5. Flight info | `Fuel check interval (seconds)` | `10` |
 | 6. HUD layout | `Enable custom layout` | `true` |
-| 6. HUD layout | `Element layout` | `Climbrate:0,40;Altitude:0,28` |
+| 6. HUD layout | `Element layout` | `Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false` |
 | 7. Declutter | `Objective label` | `Hidden` |
 | 7. Declutter | `Hide chosen unit markers` | `true` |
 | 7. Declutter | `Hidden unit types` | `pilot` |

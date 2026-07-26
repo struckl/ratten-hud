@@ -36,12 +36,27 @@ internal static class ThreatReadout
     private const string MissilesElement = "Missiles";
     private const string RadarsElement = "Threats";
 
-    /// <summary>How long an emitter stays listed after its last sweep. Matches
-    /// the lifetime the game gives its own directional warning icons.</summary>
-    private const float ContactLifetime = 4f;
+    /// <summary>
+    /// How long a ping counts towards an emitter's tally. Search radars sweep
+    /// slowly -- a scanner that finds you every eight seconds is still hunting
+    /// you -- so this window must comfortably hold two of those sweeps, or the
+    /// two-ping rule below filters slow scanners out entirely.
+    /// </summary>
+    private const float PingMemorySeconds = 20f;
+
+    /// <summary>How long a search line stays up after its last ping.</summary>
+    private const float SearchShowSeconds = 10f;
+
+    /// <summary>
+    /// How long a LOCK stays trusted after its last ping. A tracking radar
+    /// paints its target continuously, so a lock that has not pinged for this
+    /// long has in truth lost us; the line falls back to a search tally rather
+    /// than claiming a track that is gone.
+    /// </summary>
+    private const float LockShowSeconds = 4f;
 
     /// <summary>A radar that paints us once and never again is noise; the list
-    /// starts caring at the second ping inside a contact's lifetime.</summary>
+    /// starts caring at the second ping inside <see cref="PingMemorySeconds"/>.</summary>
     private const int MinPingsToShow = 2;
 
     /// <summary>
@@ -71,7 +86,13 @@ internal static class ThreatReadout
         public Unit Emitter;
         public bool IsTarget;
         public float LastSeen;
-        public int Pings;
+        public readonly List<float> PingTimes = new List<float>();
+
+        public void Prune(float now)
+        {
+            while (PingTimes.Count > 0 && now - PingTimes[0] > PingMemorySeconds)
+                PingTimes.RemoveAt(0);
+        }
     }
 
     private struct Inbound
@@ -106,14 +127,18 @@ internal static class ThreatReadout
 
         // The right-hand flight column, a line of space under the altitude
         // block (which the default layout table pulls up under the climb
-        // rate), stacking downwards. Movable as "Threats".
+        // rate), stacking downwards. Pinned by its right edge, just inside the
+        // throttle column: emitter codes vary in length, and a left-pinned
+        // line long enough ran off the edge of the glass. Growing left instead
+        // costs nothing -- the space towards the centre is empty sky.
+        // Movable as "Threats".
         Overlay.Register(
             RadarsElement,
             anchor: new Vector2(0.5f, 0.5f),
-            pivot: new Vector2(0f, 1f),
-            offset: new Vector2(197f, -22f),
+            pivot: new Vector2(1f, 1f),
+            offset: new Vector2(300f, -22f),
             fontScale: 1f,
-            TextAnchor.UpperLeft);
+            TextAnchor.UpperRight);
     }
 
     /// <summary>Records a sweep. Called from the radar warning patch below.</summary>
@@ -129,7 +154,7 @@ internal static class ThreatReadout
         }
         contact.IsTarget = isTarget;
         contact.LastSeen = Time.timeSinceLevelLoad;
-        contact.Pings++;
+        contact.PingTimes.Add(contact.LastSeen);
     }
 
     public static void Tick()
@@ -227,7 +252,8 @@ internal static class ThreatReadout
         Expired.Clear();
         foreach (KeyValuePair<Unit, Contact> pair in Contacts)
         {
-            if (pair.Key == null || now - pair.Value.LastSeen > ContactLifetime)
+            pair.Value.Prune(now);
+            if (pair.Key == null || pair.Value.PingTimes.Count == 0)
                 Expired.Add(pair.Key);
         }
         foreach (Unit stale in Expired)
@@ -245,22 +271,34 @@ internal static class ThreatReadout
         foreach (Contact contact in SortedContacts)
         {
             bool launched = HasLaunched(contact.Emitter, warning);
-
-            // A sweep that happened once is noise. A lock or a launch is never
-            // noise, however fresh the contact.
-            if (!launched && !contact.IsTarget && contact.Pings < MinPingsToShow)
-                continue;
+            float sinceLastPing = now - contact.LastSeen;
+            bool locked = contact.IsTarget && sinceLastPing <= LockShowSeconds;
 
             if (Builder.Length > 0)
                 Builder.Append('\n');
 
-            Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] ");
             if (launched)
-                Builder.Append("LAUNCH");
-            else if (contact.IsTarget)
-                Builder.Append("LOCK");
+            {
+                Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] LAUNCH");
+            }
+            else if (locked)
+            {
+                Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] LOCK");
+            }
+            else if (contact.PingTimes.Count >= MinPingsToShow && sinceLastPing <= SearchShowSeconds)
+            {
+                // A sweep that happened once is noise; the tally starts at two
+                // pings inside the memory window. A lock or a launch is never
+                // noise, however fresh the contact.
+                Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] x")
+                       .Append(contact.PingTimes.Count);
+            }
             else
-                Builder.Append('x').Append(contact.Pings);
+            {
+                // Nothing written for this contact after all.
+                if (Builder.Length > 0)
+                    Builder.Length -= 1;
+            }
         }
     }
 
@@ -348,4 +386,24 @@ internal static class RadarWarningSweepPatch
 internal static class StockRadarWarningIconPatch
 {
     private static bool Prefix() => !Plugin.On(Plugin.HideStockRadarWarning);
+}
+
+/// <summary>
+/// Blanks the game's own missile warning lines over the map, which the red
+/// block on the HUD replaces.
+///
+/// Only the text component is switched off, and only after AnimateItem has run:
+/// the same object drives the notch line on the map, the notch indicator on the
+/// glass and the flash of the missile's own marker, and all of those stay. The
+/// toggle works both ways mid-flight because the game rewrites the text every
+/// frame anyway.
+/// </summary>
+[HarmonyPatch(typeof(ThreatItem), nameof(ThreatItem.AnimateItem))]
+internal static class StockThreatListTextPatch
+{
+    private static void Postfix(Text ___text)
+    {
+        if (___text != null)
+            ___text.enabled = !Plugin.On(Plugin.HideStockThreatList);
+    }
 }
