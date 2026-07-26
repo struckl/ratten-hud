@@ -177,12 +177,14 @@ route through the shared settings refresh this hooks.
 This plugin's readouts register under `MissileBanner`, `ImpactCountdown`,
 `RadarWarnings`, `ShootCue` and `TargetData`.
 
-#### Migrating the MKMods climb rate tweak
+#### The climb rate default
 
-The table is **empty by default**, deliberately. MKMods has its own
-`ClimbRateVerticalOffset` that moves the climb rate readout by 40px, and if both
-are active the element moves twice. To fold that tweak into this table, set
-MKMods' `ClimbRateVerticalOffset` to `0` and add `Climbrate:0,40` here.
+The table defaults to `Climbrate:0,40`. That is the old MKMods
+`ClimbRateVerticalOffset`, which now lives here — the stock climb rate readout
+sits low enough to collide with its neighbours.
+
+If you still run MKMods alongside this, set its `ClimbRateVerticalOffset` to `0`
+first, or the readout moves twice.
 
 ## Configuration
 
@@ -199,7 +201,7 @@ Every feature has its own switch in
 | Weapons | `ShootCueOverlay` | `false` |
 | Weapons | `TargetDataBlock` | `true` |
 | Layout | `Enabled` | `true` |
-| Layout | `Elements` | *(empty)* |
+| Layout | `Elements` | `Climbrate:0,40` |
 | Declutter | `ObjectiveLabel` | `Hidden` |
 | Declutter | `HideMarkers` | `true` |
 | Declutter | `HiddenMarkerUnits` | `pilot` |
