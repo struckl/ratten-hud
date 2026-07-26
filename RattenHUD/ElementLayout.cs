@@ -236,6 +236,7 @@ internal static class ElementLayout
                 rect.localScale = undo.Scale;
                 if (rect.gameObject.activeSelf != undo.Active)
                     rect.gameObject.SetActive(undo.Active);
+                SetGraphics(rect, id, visible: true);
             }
             return;
         }
@@ -253,6 +254,31 @@ internal static class ElementLayout
         rect.localScale = baseline.Scale * rule.Scale;
         if (rect.gameObject.activeSelf != rule.Visible)
             rect.gameObject.SetActive(rule.Visible);
+        SetGraphics(rect, id, rule.Visible);
+    }
+
+    // Elements we hid by killing their graphics, so removing the rule can
+    // bring exactly those back.
+    private static readonly HashSet<int> GraphicsKilled = new HashSet<int>();
+    private static readonly List<UnityEngine.UI.Graphic> GraphicsBuffer =
+        new List<UnityEngine.UI.Graphic>();
+
+    /// <summary>
+    /// Deactivating a screen-fixed element is not enough to hide it: whatever
+    /// manages the HMD elements re-activates them behind our back, which is
+    /// how a hidden Bearing.HMD came straight back. Dead graphics survive
+    /// re-activation, so a hide rule kills every graphic under the element as
+    /// well.
+    /// </summary>
+    private static void SetGraphics(RectTransform rect, int id, bool visible)
+    {
+        if (visible ? !GraphicsKilled.Remove(id) : !GraphicsKilled.Add(id))
+            return;
+
+        rect.GetComponentsInChildren(includeInactive: true, GraphicsBuffer);
+        foreach (UnityEngine.UI.Graphic graphic in GraphicsBuffer)
+            graphic.enabled = visible;
+        GraphicsBuffer.Clear();
     }
 }
 

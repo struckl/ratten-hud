@@ -10,7 +10,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string Guid = "dev.sewerlabs.rattenhud";
     public const string Name = "Ratten HUD";
-    public const string Version = "2.1.0";
+    public const string Version = "2.2.0";
 
     internal static new ManualLogSource Logger;
 
@@ -166,7 +166,7 @@ public class Plugin : BaseUnityPlugin
             + "puts it.");
         Layout = Config.Bind(
             "6. HUD layout", "Element layout",
-            "Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false",
+            "Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false;Altitude.HMD:0,0,1,false",
             "Advanced setting: where each HUD element sits. One entry per "
             + "element, separated by semicolons.\n"
             + "Format: Name:right,up[,scale][,visible] -- offsets in pixels on a "
@@ -186,8 +186,8 @@ public class Plugin : BaseUnityPlugin
             + "The default moves the climb rate up (in the stock layout it "
             + "collides with its neighbours), tucks the altitude block "
             + "underneath it so the threat readout fits below, and hides the "
-            + "screen-fixed heading box, which duplicates the heading under "
-            + "the compass tape.\n"
+            + "screen-fixed heading and altitude boxes at the top of the "
+            + "screen, which duplicate readouts already on the glass.\n"
             + "If you also run MKMods, set its ClimbRateVerticalOffset to 0 "
             + "first, or the climb rate moves twice.");
 
