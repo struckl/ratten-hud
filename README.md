@@ -89,8 +89,13 @@ HUD surfaces the state the game is already tracking:
 | `IN RANGE` | All requirements met, between NEZ and Rmax. |
 
 The game's own rejection reasons (`OUT OF RANGE`, `TOO CLOSE`, `OUT OF ARC`,
-`TOO SLOW`) are left exactly as they are. An overlay line adds the numbers
-behind the cue: current range against Rmax and NEZ.
+`TOO SLOW`) are left exactly as they are.
+
+The cue lives in the game's own hint label, beside the range ladder.
+`ShootCueOverlay` can additionally draw it as a line under the centre of the
+HUD, but that is **off by default** — the game already prints MAX, MIN and NEZ
+next to the ladder, so it largely duplicates them, and it sits on the overlay
+canvas that draws above every other view.
 
 ### Target data block
 
@@ -191,6 +196,7 @@ Every feature has its own switch in
 | Threats | `RadarWarningTags` | `true` |
 | Threats | `CountermeasureColours` | `true` |
 | Weapons | `ShootCue` | `true` |
+| Weapons | `ShootCueOverlay` | `false` |
 | Weapons | `TargetDataBlock` | `true` |
 | Layout | `Enabled` | `true` |
 | Layout | `Elements` | *(empty)* |

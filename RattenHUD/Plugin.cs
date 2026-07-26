@@ -22,6 +22,7 @@ public class Plugin : BaseUnityPlugin
 
     // Weapon readouts
     internal static ConfigEntry<bool> ShootCue;
+    internal static ConfigEntry<bool> ShootCueOverlay;
     internal static ConfigEntry<bool> TargetDataBlock;
 
     // Layout
@@ -52,6 +53,7 @@ public class Plugin : BaseUnityPlugin
     {
         MissileThreatBanner.Tick();
         RadarWarningTags.Tick();
+        RattenHUD.ShootCue.Tick();
     }
 
     private void BindConfig()
@@ -78,6 +80,12 @@ public class Plugin : BaseUnityPlugin
             "Show the firing cue across the whole valid envelope: SHOOT inside the "
             + "no-escape zone, IN RANGE between it and Rmax. The game computes this "
             + "but only ever displays it inside the no-escape zone.");
+        ShootCueOverlay = Config.Bind(
+            "Weapons", "ShootCueOverlay", false,
+            "Additionally draw the cue and its ranges as a line under the centre "
+            + "of the HUD. Off by default: the game already shows MAX, MIN and "
+            + "NEZ beside the range ladder, and this line sits on the overlay "
+            + "canvas that draws above every other view.");
         TargetDataBlock = Config.Bind(
             "Weapons", "TargetDataBlock", true,
             "Add closure, aspect and altitude to the selected target readout.");
