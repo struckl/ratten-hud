@@ -71,7 +71,7 @@ internal static class ShootCue
         if (hint == null)
             return;
 
-        if (!requirementsMet || !PlayerSettings.hudWeapons)
+        if (!requirementsMet)
         {
             // The game's own rejection reason is already correct -- but if we
             // had forced the label on, hand it back off. The game's OUT OF ARC
