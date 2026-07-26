@@ -36,7 +36,7 @@ internal static class ContactGlyphs
     /// <summary>Smallest readable glyph, in HUD text units. A marker shrunk into
     /// the distance is left with no symbol rather than an illegible smudge in
     /// the middle of it.</summary>
-    private const int MinimumSize = 6;
+    private const int MinimumSize = 5;
 
     private sealed class Glyph
     {
@@ -53,6 +53,8 @@ internal static class ContactGlyphs
     // out once rather than per contact per frame.
     private static readonly Dictionary<string, string> Symbols =
         new Dictionary<string, string>();
+
+    private static bool loggedSize;
 
     /// <summary>
     /// Called after the game has moved every marker for this frame, so the
@@ -119,6 +121,7 @@ internal static class ContactGlyphs
 
                 glyph = new Glyph { Text = text, Frame = frame };
                 Glyphs[marker] = glyph;
+                LogSizeOnce(marker.image.rectTransform, template, scale, size);
             }
 
             string symbol = Symbol(unit);
@@ -191,6 +194,27 @@ internal static class ContactGlyphs
 
         Symbols[code] = symbol;
         return symbol;
+    }
+
+    /// <summary>
+    /// One line, for the first symbol of a session, with the numbers the size
+    /// is worked out from.
+    ///
+    /// The marker's rect is a good deal larger than the triangle drawn inside
+    /// it, and how much larger is a property of a sprite this plugin cannot
+    /// see, so a scale that looks right is found by eye. This prints what the
+    /// eye is actually looking at, which beats another round of guessing.
+    /// </summary>
+    private static void LogSizeOnce(RectTransform icon, Text template, float scale, int size)
+    {
+        if (loggedSize)
+            return;
+
+        loggedSize = true;
+        Plugin.Logger.LogInfo(
+            $"ContactGlyphs: marker rect={icon.sizeDelta.x:F1} x scale={icon.localScale.x:F1}"
+            + $" = {icon.sizeDelta.x * icon.localScale.x:F1}, glyph={size} at GlyphScale={scale:F2}"
+            + $", HUD text={template.fontSize}");
     }
 
     /// <summary>

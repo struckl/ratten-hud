@@ -154,16 +154,25 @@ while 12, 20, 22, 25, 30, 46, 49, 67 and 81 are all distinct.
 | --- | --- | --- |
 | `ContactGlyphs` | `true` | The symbols. |
 | `GlyphFriendlyAircraft` | `true` | Mark your own faction too. |
-| `GlyphScale` | `0.3` | Symbol size as a fraction of the marker. |
+| `GlyphScale` | `0.2` | Symbol size as a fraction of the marker. |
 
 Inside the icon it costs no space at all — the triangle was already there. This
 started as a label beside each marker, which is exactly the mistake it looks
 like once a dozen contacts are each trailing text.
 
 `GlyphScale` follows your HUD icon size and the marker's own distance shrink, so
-a far contact gets a smaller symbol and below six pixels gets none rather than a
-smudge. Two digits have to fit inside a triangle, so it wants to stay well under
-half.
+a far contact gets a smaller symbol and below five pixels gets none rather than
+a smudge. It is read every frame, so editing it while the game runs resizes the
+symbols as you save — no restart to find the size you want.
+
+A fifth of the marker is already a readable symbol, because the marker's rect is
+a good deal larger than the triangle drawn inside it. How much larger is a
+property of a sprite this plugin cannot measure, so the first symbol of each
+session logs what it worked from:
+
+```
+[Info   :Ratten HUD] ContactGlyphs: marker rect=1.0 x scale=37.5 = 37.5, glyph=8 at GlyphScale=0.20, HUD text=40
+```
 
 Symbols inherit their marker's colour and dim with a stale track and flicker
 under jamming exactly as the icon does. The selected target gets none, because
@@ -269,7 +278,7 @@ Every feature has its own switch in
 | Weapons | `TargetDataBlock` | `true` |
 | Contacts | `ContactGlyphs` | `true` |
 | Contacts | `GlyphFriendlyAircraft` | `true` |
-| Contacts | `GlyphScale` | `0.3` |
+| Contacts | `GlyphScale` | `0.2` |
 | Flight | `FuelTimeReadout` | `true` |
 | Flight | `FuelTimeUpdateRate` | `10` |
 | Layout | `Enabled` | `true` |
