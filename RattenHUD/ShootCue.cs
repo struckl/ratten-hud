@@ -1,0 +1,115 @@
+using HarmonyLib;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace RattenHUD;
+
+/// <summary>
+/// The game already solves the launch envelope — it computes Rmin, Rmax and the
+/// no-escape range every second and decides whether every firing requirement is
+/// met. It then throws most of that away: the "SHOOT" hint is only ever shown
+/// inside the no-escape zone (<c>hint.enabled = maxTargetDist &lt; noEscapeRange</c>),
+/// so between NEZ and Rmax you get a valid firing solution and no cue at all.
+///
+/// This surfaces the state the game is already tracking: SHOOT inside the NEZ,
+/// IN RANGE between NEZ and Rmax, and the numbers behind it on the overlay.
+/// </summary>
+internal static class ShootCue
+{
+    private const float ShootFlashHz = 3f;
+
+    private static readonly Color Shoot = new Color(0.3f, 1f, 0.35f);
+    private static readonly Color InRange = new Color(1f, 0.85f, 0.2f);
+
+    private static Text readout;
+
+    public static void Initialize()
+    {
+        if (!Plugin.ShootCue.Value)
+            return;
+
+        readout = Overlay.CreateText(
+            ElementLayout.Elements.ShootCue,
+            anchor: new Vector2(0.5f, 0.5f),
+            offset: new Vector2(0f, -210f),
+            fontSize: 24,
+            TextAnchor.MiddleCenter);
+    }
+
+    public static void Clear()
+    {
+        if (readout != null && readout.text.Length > 0)
+            readout.text = string.Empty;
+    }
+
+    /// <summary>
+    /// Called from the <see cref="HUDMissileState"/> postfix with the envelope
+    /// the game just finished computing.
+    /// </summary>
+    public static void Apply(
+        Text hint, bool requirementsMet, float targetDist, float noEscapeRange, float maxRange)
+    {
+        if (!requirementsMet)
+        {
+            // The game's own rejection reason (OUT OF RANGE, TOO CLOSE, OUT OF
+            // ARC, TOO SLOW) is already correct; leave it alone.
+            Clear();
+            return;
+        }
+
+        bool inNoEscape = targetDist < noEscapeRange;
+        Color colour = inNoEscape ? Shoot : InRange;
+        string label = inNoEscape ? "SHOOT" : "IN RANGE";
+
+        if (hint != null)
+        {
+            hint.text = label;
+            hint.color = colour;
+            // The one line that matters: show the cue across the whole valid
+            // envelope, not just the no-escape slice of it.
+            hint.enabled = true;
+        }
+
+        if (readout == null)
+            return;
+
+        float alpha = 1f;
+        if (inNoEscape)
+            alpha = Mathf.Repeat(Time.unscaledTime * ShootFlashHz, 1f) < 0.5f ? 1f : 0.45f;
+
+        Color tinted = colour;
+        tinted.a = alpha;
+        readout.color = tinted;
+        readout.text =
+            $"{label}   {UnitConverter.DistanceReading(targetDist)} / "
+            + $"RMAX {UnitConverter.DistanceReading(maxRange)}"
+            + (noEscapeRange < maxRange * 0.9f
+                ? $" / NEZ {UnitConverter.DistanceReading(noEscapeRange)}"
+                : string.Empty);
+    }
+}
+
+[HarmonyPatch(typeof(HUDMissileState), "DisplayText")]
+internal static class ShootCuePatch
+{
+    private static void Postfix(
+        bool ___hidden,
+        bool ___allRequirementsMet,
+        float ___maxTargetDist,
+        float ___noEscapeRange,
+        float ___maxRange,
+        Text ___hint)
+    {
+        if (!Plugin.ShootCue.Value)
+            return;
+
+        // Nothing selected or no ammo: the panel is hidden and must stay that way.
+        if (___hidden)
+        {
+            ShootCue.Clear();
+            return;
+        }
+
+        ShootCue.Apply(___hint, ___allRequirementsMet, ___maxTargetDist, ___noEscapeRange, ___maxRange);
+    }
+}
