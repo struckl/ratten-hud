@@ -72,7 +72,75 @@ internal static class ElementLayout
         {
             Parse(Plugin.Layout.Value);
             ReapplySeen();
+            RequestSweep();
         };
+    }
+
+    /// <summary>
+    /// The name an element is addressed by in the layout table: the component
+    /// type name, suffixed with the flavour for anything not projected on the
+    /// glass (Bearing.HMD, ...). The game builds some readouts in more than one
+    /// flavour under one component name, so the flavour has to be part of the
+    /// key or a rule could only ever hit all of them at once.
+    /// </summary>
+    public static string NameOf(HUDApp app)
+    {
+        string name = app.GetType().Name;
+        string kind = AppTypeField.GetValue(app).ToString();
+        return kind == "HUD" ? name : name + "." + kind;
+    }
+
+    private static readonly System.Reflection.FieldInfo AppTypeField =
+        AccessTools.Field(typeof(HUDApp), "type");
+
+    // The settings-refresh hook only sees elements the game's HUDAppManager
+    // knows about. The sweep finds every HUDApp in the scene -- including the
+    // screen-fixed ones that never route through that refresh -- applies the
+    // table to them, and logs the full name list once, so nobody has to guess
+    // what an element is called.
+    private static bool sweepDone;
+    private static float sweepDueTime = float.NaN;
+
+    public static void RequestSweep()
+    {
+        sweepDone = false;
+        sweepDueTime = float.NaN;
+    }
+
+    /// <summary>Called every frame; sweeps once, two seconds after the cockpit
+    /// is entered, giving the HUD time to finish building itself.</summary>
+    public static void TickSweep()
+    {
+        if (sweepDone || !Plugin.On(Plugin.LayoutEnabled))
+            return;
+        if (!Overlay.InCockpit)
+        {
+            sweepDueTime = float.NaN;
+            return;
+        }
+        if (float.IsNaN(sweepDueTime))
+        {
+            sweepDueTime = Time.unscaledTime + 2f;
+            return;
+        }
+        if (Time.unscaledTime < sweepDueTime)
+            return;
+
+        sweepDone = true;
+
+        HUDApp[] apps = Object.FindObjectsOfType<HUDApp>(includeInactive: true);
+        var names = new List<string>(apps.Length);
+        foreach (HUDApp app in apps)
+        {
+            string name = NameOf(app);
+            names.Add(name);
+            if (app.transform is RectTransform rect)
+                Apply(name, rect);
+        }
+
+        names.Sort();
+        Plugin.Logger.LogInfo(
+            $"Layout: elements on this HUD: {string.Join(", ", names)}");
     }
 
     private static void Parse(string table)
@@ -197,14 +265,6 @@ internal static class ElementLayout
 [HarmonyPatch(typeof(HUDApp), nameof(HUDApp.RefreshSettings))]
 internal static class HUDAppLayoutPatch
 {
-    // HUDApp.type: HUD (projected on the glass), HMD (fixed to the screen) or
-    // MFD. The game builds some readouts in more than one flavour -- Bearing
-    // exists both on the glass and as the screen-fixed box at the top -- and
-    // they share a component name, so the flavour has to be part of the key or
-    // a rule could only ever hit both at once.
-    private static readonly System.Reflection.FieldInfo AppTypeField =
-        AccessTools.Field(typeof(HUDApp), "type");
-
     private static void Postfix(HUDApp __instance)
     {
         // Also the one place that reliably hands us a live HUD label to clone.
@@ -212,16 +272,7 @@ internal static class HUDAppLayoutPatch
 
         if (!Plugin.On(Plugin.LayoutEnabled))
             return;
-        if (!(__instance.transform is RectTransform rect))
-            return;
-
-        // Glass elements keep the bare component name everyone already uses;
-        // the other flavours get a suffix: Bearing.HMD, and so on.
-        string name = __instance.GetType().Name;
-        string kind = AppTypeField.GetValue(__instance).ToString();
-        if (kind != "HUD")
-            name = name + "." + kind;
-
-        ElementLayout.Apply(name, rect);
+        if (__instance.transform is RectTransform rect)
+            ElementLayout.Apply(ElementLayout.NameOf(__instance), rect);
     }
 }

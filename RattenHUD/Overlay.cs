@@ -187,7 +187,12 @@ internal static class Overlay
         return text;
     }
 
-    public static void OnAircraftSet(CombatHUD hud) => tracked = hud;
+    public static void OnAircraftSet(CombatHUD hud)
+    {
+        tracked = hud;
+        // A new seat means a freshly built HUD; sweep it once it settles.
+        ElementLayout.RequestSweep();
+    }
 
     public static void OnAircraftRemoved() => tracked = null;
 

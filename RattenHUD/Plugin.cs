@@ -71,6 +71,7 @@ public class Plugin : BaseUnityPlugin
     {
         Overlay.LogDiagnosticsOnce();
 
+        ElementLayout.TickSweep();
         ThreatReadout.Tick();
         RattenHUD.ShootCue.Tick();
     }
