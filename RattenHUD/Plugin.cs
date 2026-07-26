@@ -80,16 +80,23 @@ public class Plugin : BaseUnityPlugin
             "Layout", "Enabled", true,
             "Apply the element layout table below.");
         Layout = Config.Bind(
-            "Layout", "Elements", "Climbrate:0,40",
+            "Layout", "Elements", "",
             "Per-element offset, scale and visibility, as a semicolon separated "
             + "list of Name:xOffset,yOffset[,scale][,visible].\n"
             + "Positive Y is up, offsets are in 1080p reference pixels, and a "
             + "trailing 'false' hides the element entirely (declutter).\n"
             + "Game elements are named after the HUD component that drives them: "
-            + "Climbrate, CountermeasureIndicator, FuelGauge, Compass, "
-            + "WeaponIndicator, and so on.\n"
+            + "Climbrate, CountermeasureIndicator, FuelGauge, SpeedGauge, "
+            + "WeaponIndicator, and so on. ArtificialHorizon and GearIndicator "
+            + "cannot be moved this way; they are the only two HUD elements that "
+            + "do not route through the shared settings refresh.\n"
             + "This plugin's own readouts are named MissileBanner, "
             + "ImpactCountdown, RadarWarnings, ShootCue, TargetData.\n"
+            + "Empty by default so that it cannot fight MKMods: if MKMods is "
+            + "installed, its ClimbRateVerticalOffset already moves the climb "
+            + "rate readout, and adding Climbrate here would move it twice. To "
+            + "migrate that tweak, set MKMods' ClimbRateVerticalOffset to 0 and "
+            + "add Climbrate:0,40 below.\n"
             + "Example: Climbrate:0,40;RadarWarnings:20,0,0.9;CountermeasureIndicator:0,0,1,false");
     }
 }

@@ -127,13 +127,20 @@ the last value.
 
 Game elements are named after the HUD component that drives them (`Climbrate`,
 `CountermeasureIndicator`, `WeaponIndicator`, …) rather than by GameObject name,
-because the component name is what the game's own code commits to.
+because the component name is what the game's own code commits to. 28 of the
+game's 30 HUD elements can be placed this way; `ArtificialHorizon` and
+`GearIndicator` are the two exceptions, being the only elements that do not
+route through the shared settings refresh this hooks.
 
 This plugin's readouts register under `MissileBanner`, `ImpactCountdown`,
 `RadarWarnings`, `ShootCue` and `TargetData`.
 
-The default table is `Climbrate:0,40`, which reproduces the old MKMods
-`ClimbRateVerticalOffset` tweak — that setting is now just one row in this table.
+#### Migrating the MKMods climb rate tweak
+
+The table is **empty by default**, deliberately. MKMods has its own
+`ClimbRateVerticalOffset` that moves the climb rate readout by 40px, and if both
+are active the element moves twice. To fold that tweak into this table, set
+MKMods' `ClimbRateVerticalOffset` to `0` and add `Climbrate:0,40` here.
 
 ## Configuration
 
@@ -149,7 +156,7 @@ Every feature has its own switch in
 | Weapons | `ShootCue` | `true` |
 | Weapons | `TargetDataBlock` | `true` |
 | Layout | `Enabled` | `true` |
-| Layout | `Elements` | `Climbrate:0,40` |
+| Layout | `Elements` | *(empty)* |
 
 The layout table re-applies live when the config file changes, so you can nudge
 elements without restarting.
