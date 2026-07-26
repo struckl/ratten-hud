@@ -105,8 +105,14 @@ internal static class ThreatReadout
 
     private static readonly Dictionary<Unit, Contact> Contacts = new Dictionary<Unit, Contact>();
     private static readonly List<Unit> Expired = new List<Unit>();
-    private static readonly List<Contact> SortedContacts = new List<Contact>();
     private static readonly List<Inbound> Inbounds = new List<Inbound>();
+
+    // Radar lines are grouped by emitter type code -- two RDR stations hunting
+    // you are one fact, not two lines. Launch and lock groups count units, the
+    // search group sums pings.
+    private static readonly Dictionary<string, int> LaunchUnits = new Dictionary<string, int>();
+    private static readonly Dictionary<string, int> LockUnits = new Dictionary<string, int>();
+    private static readonly Dictionary<string, int> SearchPings = new Dictionary<string, int>();
 
     // Reused every frame so the readout does not allocate a fresh buffer at
     // exactly the moment the player can least afford a hitch.
@@ -262,51 +268,60 @@ internal static class ThreatReadout
         if (Contacts.Count == 0)
             return;
 
-        SortedContacts.Clear();
+        // Each contact lands in exactly one bucket, most urgent it qualifies
+        // for. Buckets group by type code: two RDR stations sweeping you are
+        // one line, their pings pooled -- which also means two half-noticed
+        // radars of one type add up to a line neither would earn alone.
+        LaunchUnits.Clear();
+        LockUnits.Clear();
+        SearchPings.Clear();
+
         foreach (Contact contact in Contacts.Values)
-            SortedContacts.Add(contact);
-        // Shooters first, then trackers, then everything merely sweeping.
-        SortedContacts.Sort((a, b) => Rank(b, warning).CompareTo(Rank(a, warning)));
-
-        foreach (Contact contact in SortedContacts)
         {
-            bool launched = HasLaunched(contact.Emitter, warning);
+            string code = EmitterName(contact.Emitter);
             float sinceLastPing = now - contact.LastSeen;
-            bool locked = contact.IsTarget && sinceLastPing <= LockShowSeconds;
 
-            if (Builder.Length > 0)
-                Builder.Append('\n');
+            if (HasLaunched(contact.Emitter, warning))
+                Bump(LaunchUnits, code, 1);
+            else if (contact.IsTarget && sinceLastPing <= LockShowSeconds)
+                Bump(LockUnits, code, 1);
+            else if (sinceLastPing <= SearchShowSeconds)
+                Bump(SearchPings, code, contact.PingTimes.Count);
+        }
 
-            if (launched)
-            {
-                Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] LAUNCH");
-            }
-            else if (locked)
-            {
-                Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] LOCK");
-            }
-            else if (contact.PingTimes.Count >= MinPingsToShow && sinceLastPing <= SearchShowSeconds)
-            {
-                // A sweep that happened once is noise; the tally starts at two
-                // pings inside the memory window. A lock or a launch is never
-                // noise, however fresh the contact.
-                Builder.Append('[').Append(EmitterName(contact.Emitter)).Append("] x")
-                       .Append(contact.PingTimes.Count);
-            }
-            else
-            {
-                // Nothing written for this contact after all.
-                if (Builder.Length > 0)
-                    Builder.Length -= 1;
-            }
+        // Shooters first, then trackers, then everything merely sweeping.
+        foreach (KeyValuePair<string, int> group in LaunchUnits)
+            AppendRadarLine(group.Key, " LAUNCH", group.Value > 1 ? group.Value : 0);
+        foreach (KeyValuePair<string, int> group in LockUnits)
+            AppendRadarLine(group.Key, " LOCK", group.Value > 1 ? group.Value : 0);
+        foreach (KeyValuePair<string, int> group in SearchPings)
+        {
+            // A single ping is noise; the tally starts at two. A lock or a
+            // launch is never noise, however fresh the contact.
+            if (group.Value >= MinPingsToShow)
+                AppendRadarLine(group.Key, string.Empty, group.Value);
         }
     }
 
-    private static int Rank(Contact contact, MissileWarning warning)
+    private static void Bump(Dictionary<string, int> group, string code, int amount)
     {
-        if (HasLaunched(contact.Emitter, warning))
-            return 2;
-        return contact.IsTarget ? 1 : 0;
+        group.TryGetValue(code, out int current);
+        group[code] = current + amount;
+    }
+
+    /// <summary>
+    /// One grouped line. The count means units on a LAUNCH or LOCK line
+    /// ("[FS-12] LOCK x2": two of them have you) and pings on a search line
+    /// ("[RDR] x3": swept three times recently); zero omits it.
+    /// </summary>
+    private static void AppendRadarLine(string code, string tag, int count)
+    {
+        if (Builder.Length > 0)
+            Builder.Append('\n');
+
+        Builder.Append('[').Append(code).Append(']').Append(tag);
+        if (count > 0)
+            Builder.Append(" x").Append(count);
     }
 
     /// <summary>True if any missile currently inbound was fired by this emitter.</summary>
@@ -392,18 +407,32 @@ internal static class StockRadarWarningIconPatch
 /// Blanks the game's own missile warning lines over the map, which the red
 /// block on the HUD replaces.
 ///
-/// Only the text component is switched off, and only after AnimateItem has run:
-/// the same object drives the notch line on the map, the notch indicator on the
-/// glass and the flash of the missile's own marker, and all of those stay. The
-/// toggle works both ways mid-flight because the game rewrites the text every
-/// frame anyway.
+/// Every graphic in the list row is switched off -- the row is text on a
+/// backdrop, and hiding the text alone left an empty rectangle behind. Only
+/// the row: the notch line on the map, the notch indicator on the glass and
+/// the missile's own marker flash are parented elsewhere and stay. The row
+/// GameObject itself must also stay active, because the game hides the notch
+/// line whenever its ThreatItem is disabled.
+///
+/// The toggle works both ways mid-flight because this runs every frame the
+/// item animates.
 /// </summary>
 [HarmonyPatch(typeof(ThreatItem), nameof(ThreatItem.AnimateItem))]
 internal static class StockThreatListTextPatch
 {
-    private static void Postfix(Text ___text)
+    private static readonly List<UnityEngine.UI.Graphic> RowGraphics =
+        new List<UnityEngine.UI.Graphic>(8);
+
+    private static void Postfix(ThreatItem __instance)
     {
-        if (___text != null)
-            ___text.enabled = !Plugin.On(Plugin.HideStockThreatList);
+        bool visible = !Plugin.On(Plugin.HideStockThreatList);
+
+        __instance.GetComponentsInChildren(includeInactive: true, RowGraphics);
+        foreach (UnityEngine.UI.Graphic graphic in RowGraphics)
+        {
+            if (graphic.enabled != visible)
+                graphic.enabled = visible;
+        }
+        RowGraphics.Clear();
     }
 }

@@ -73,13 +73,20 @@ right-hand flight column, tagged by state and named by unit type:
 
 | Tag | Meaning |
 | --- | --- |
-| `[RDR] x3` | Sweeping you, no track — pinged three times recently. |
+| `[RDR] x3` | Sweeping you, no track — three pings recently. |
 | `[SAM] LOCK` | You are the tracked target. |
+| `[FS-12] LOCK x2` | Two FS-12s are tracking you. |
 | `[MIG-29] LAUNCH` | A missile currently inbound was fired by this emitter. |
 
+Lines group by emitter type: two RDR stations hunting you are one fact, not
+two lines, so their pings pool into one tally. On a `LOCK` or `LAUNCH` line
+the count is units — how many of that type have you — and it is omitted when
+there is just one.
+
 A radar that pings you once and never again is noise, so a single ping is not
-shown at all — the list starts at `x2`. A lock or a launch shows immediately,
-however fresh the contact.
+shown at all — the tally starts at `x2` (pooled across stations of the type:
+two radars that each found you once add up to a line neither would earn
+alone). A lock or a launch shows immediately, however fresh the contact.
 
 Pings count within a 20-second memory, long enough to hold two sweeps of a
 slow search radar; a sweep line stays up for 10 seconds after its last ping. A
