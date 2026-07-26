@@ -47,8 +47,9 @@ internal static class ShootCue
         Overlay.Register(
             ElementLayout.Elements.ShootCue,
             anchor: new Vector2(0.5f, 0.5f),
+            pivot: new Vector2(0.5f, 0.5f),
             offset: new Vector2(0f, -210f),
-            fontSize: 24,
+            fontScale: 1f,
             TextAnchor.MiddleCenter);
 
         registered = true;

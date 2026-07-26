@@ -73,15 +73,17 @@ internal static class MissileThreatBanner
         Overlay.Register(
             ElementLayout.Elements.MissileBanner,
             anchor: new Vector2(0.5f, 0.5f),
+            pivot: new Vector2(0.5f, 0.5f),
             offset: new Vector2(0f, 260f),
-            fontSize: 30,
+            fontScale: 1.2f,
             TextAnchor.MiddleCenter);
 
         Overlay.Register(
             ElementLayout.Elements.ImpactCountdown,
             anchor: new Vector2(0.5f, 0.5f),
+            pivot: new Vector2(0.5f, 0.5f),
             offset: new Vector2(0f, 220f),
-            fontSize: 26,
+            fontScale: 1f,
             TextAnchor.MiddleCenter);
 
         registered = true;
@@ -201,10 +203,14 @@ internal static class MissileThreatBanner
 
         // Per-line colour needs rich text; the flash rides in the alpha channel
         // so that every line pulses together off the closest missile's clock.
+        //
+        // ASCII only. The HUD font is the game's own and has no reason to carry
+        // an interpunct, an arrow or a multiplication sign; a missing glyph on a
+        // missile warning is the worst possible place to find out.
         Builder.Append("<color=#").Append(ToHex(colour, alpha)).Append('>');
-        Builder.Append("MISSILE · ").Append(label).Append(" → ").Append(answer);
+        Builder.Append("MISSILE ").Append(label).Append("  ").Append(answer);
         if (count > 1)
-            Builder.Append(" ×").Append(count);
+            Builder.Append(" X").Append(count);
         Builder.Append("</color>");
     }
 

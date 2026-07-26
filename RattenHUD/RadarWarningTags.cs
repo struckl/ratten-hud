@@ -43,11 +43,15 @@ internal static class RadarWarningTags
         if (!Plugin.RadarTags.Value)
             return;
 
+        // Left pivot, not centre: with a centre pivot the text box straddles the
+        // anchor and a left-aligned list starts half a box-width further left,
+        // which ran the tags off the edge of the screen.
         Overlay.Register(
             ElementLayout.Elements.RadarWarnings,
             anchor: new Vector2(0f, 0.5f),
+            pivot: new Vector2(0f, 0.5f),
             offset: new Vector2(230f, 0f),
-            fontSize: 20,
+            fontScale: 0.9f,
             TextAnchor.MiddleLeft);
 
         registered = true;
@@ -125,7 +129,10 @@ internal static class RadarWarningTags
                    .Append(ColorUtility.ToHtmlStringRGB(colour))
                    .Append(Mathf.RoundToInt(alpha * 255f).ToString("X2"))
                    .Append('>')
-                   .Append(tag.PadRight(7))
+                   // No PadRight: the HUD font is proportional, so padding buys
+                   // ragged pseudo-columns rather than aligned ones.
+                   .Append(tag)
+                   .Append(' ')
                    .Append(EmitterName(contact.Emitter))
                    .Append("</color>");
         }

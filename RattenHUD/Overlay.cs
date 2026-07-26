@@ -6,113 +6,84 @@ using UnityEngine.UI;
 namespace RattenHUD;
 
 /// <summary>
-/// A screen space canvas the plugin owns outright. Drawing onto our own canvas
-/// rather than into the game's HUD hierarchy keeps the readouts alive across
-/// aircraft changes and means a game side layout change cannot silently move
-/// our elements somewhere unreadable.
+/// Builds this plugin's readouts by cloning one of the game's own HUD labels and
+/// parenting the copy into the HUD canvas.
+///
+/// The plugin used to draw onto a screen space canvas of its own with the Unity
+/// built-in font. That was wrong twice over: the canvas did not survive the
+/// first scene load, and even when it did the result was bold Arial floating
+/// over the screen instead of sitting on the glass with everything else. Cloning
+/// a live HUD label inherits the font, the player's HUD colour and text size,
+/// the material and the projection for free -- the same trick the fuel time
+/// readout has always used, which is why that one looked right from the start.
 ///
 /// Elements are declared once with <see cref="Register"/> and fetched through
-/// <see cref="Element"/> every frame rather than being held by the caller. The
-/// canvas does not survive the first scene load -- BepInEx runs plugin Awake
-/// from a static constructor, before the first scene has finished loading, and
-/// DontDestroyOnLoad does not stick that early -- so anything holding a Text
-/// from load time ends up holding a destroyed object and silently drawing
-/// nothing for the rest of the session. Going through Element means a lost
-/// canvas is simply rebuilt on the next frame that needs it.
+/// <see cref="Element"/> every frame rather than held by the caller, so a HUD
+/// rebuilt by a scene load or an aircraft change is simply picked up again.
 /// </summary>
 internal static class Overlay
 {
-    /// <summary>Design resolution the canvas scaler matches; matches the game's own HUD.</summary>
-    private const float ReferenceWidth = 1920f;
-    private const float ReferenceHeight = 1080f;
-
     /// <summary>Everything needed to rebuild one element from nothing.</summary>
     private sealed class Element_
     {
         public Vector2 Anchor;
+        public Vector2 Pivot;
         public Vector2 Offset;
-        public int FontSize;
+        public float FontScale;
         public TextAnchor Alignment;
         public Text Instance;
     }
 
-    private static Canvas canvas;
-    private static Font font;
-
     private static readonly Dictionary<string, Element_> Elements = new Dictionary<string, Element_>();
     private static readonly List<string> Order = new List<string>();
+
+    // A live HUD label to clone, and the canvas it belongs to.
+    private static Text template;
+    private static Transform hudRoot;
 
     // The HUD currently flying the player, captured from the game's own aircraft
     // handoff rather than read off the scene singleton. See ActiveHud.
     private static CombatHUD tracked;
 
     private static bool loggedDiagnostics;
-    private static int rebuilds;
-
-    private static Transform Root
-    {
-        get
-        {
-            if (canvas != null)
-                return canvas.transform;
-
-            GameObject host = new GameObject("RattenHUD.Overlay");
-            Object.DontDestroyOnLoad(host);
-
-            canvas = host.AddComponent<Canvas>();
-            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            // Above the game HUD, below anything modal it might draw later.
-            canvas.sortingOrder = 500;
-
-            CanvasScaler scaler = host.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(ReferenceWidth, ReferenceHeight);
-            // Match on height: the HUD is vertically composed and ultrawide
-            // displays should not shrink it.
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 1f;
-
-            rebuilds++;
-            return canvas.transform;
-        }
-    }
+    private static int builds;
 
     /// <summary>
-    /// A <see cref="Text"/> with no font draws absolutely nothing, silently, so
-    /// resolution is retried until it succeeds rather than cached as a permanent
-    /// failure. Elements are declared during plugin load, which is early enough
-    /// that the scene fallback below has nothing to find.
+    /// Offered every HUD element on every settings refresh; keeps the first
+    /// usable label as the clone source.
+    ///
+    /// Climbrate specifically, rather than whatever arrives first: it is a plain
+    /// single line of HUD text present on every airframe, so the clone inherits
+    /// ordinary body styling rather than something outsized or coloured for a
+    /// warning.
     /// </summary>
-    private static Font Font
+    public static void OfferTemplate(HUDApp app)
     {
-        get
-        {
-            if (font != null)
-                return font;
+        if (template != null || !(app is Climbrate))
+            return;
 
-            // Unity renamed the built-in font in 2022. Checked with Unity's own
-            // null semantics rather than ?? , which does not see a destroyed
-            // object as null.
-            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            if (font == null)
-                font = Resources.GetBuiltinResource<Font>("Arial.ttf");
-            if (font == null)
-            {
-                Text sample = Object.FindObjectOfType<Text>();
-                if (sample != null)
-                    font = sample.font;
-            }
-            return font;
-        }
+        Text found = app.GetComponentInChildren<Text>(includeInactive: true);
+        if (found == null || found.canvas == null)
+            return;
+
+        template = found;
+        hudRoot = found.canvas.transform;
     }
 
     /// <summary>
-    /// Declares an element at a normalised screen position, where (0.5, 0.5) is
-    /// the centre of the screen and (0, 0) the bottom left. Nothing is built
-    /// until <see cref="Element"/> asks for it.
+    /// Declares an element positioned within the HUD canvas, where (0.5, 0.5) is
+    /// the centre and (0, 0) the bottom left. <paramref name="pivot"/> is which
+    /// corner of the text the offset pins: left-aligned readouts want a left
+    /// pivot, or the text runs backwards off the edge of the screen from its
+    /// anchor.
     /// </summary>
     public static void Register(
-        string name, Vector2 anchor, Vector2 offset, int fontSize, TextAnchor alignment)
+        string name,
+        Vector2 anchor,
+        Vector2 pivot,
+        Vector2 offset,
+        float fontScale,
+        TextAnchor alignment)
     {
         if (!Elements.ContainsKey(name))
             Order.Add(name);
@@ -120,34 +91,37 @@ internal static class Overlay
         Elements[name] = new Element_
         {
             Anchor = anchor,
+            Pivot = pivot,
             Offset = offset,
-            FontSize = fontSize,
+            FontScale = fontScale,
             Alignment = alignment,
             Instance = null,
         };
     }
 
-    /// <summary>The live element, built or rebuilt as needed. Null if unregistered.</summary>
+    /// <summary>
+    /// The live element, built or rebuilt as needed. Null until the HUD has
+    /// offered a template, which is the same as saying null until there is a HUD
+    /// to draw on.
+    /// </summary>
     public static Text Element(string name)
     {
         if (!Elements.TryGetValue(name, out Element_ element))
             return null;
 
         if (element.Instance != null)
-        {
-            // A font that only became resolvable after the element was built.
-            if (element.Instance.font == null)
-                element.Instance.font = Font;
             return element.Instance;
-        }
+
+        if (template == null || hudRoot == null)
+            return null;
 
         element.Instance = Build(name, element);
         return element.Instance;
     }
 
     /// <summary>
-    /// The element only if it already exists. Used by the clear paths, which
-    /// must not resurrect a canvas just to blank it.
+    /// The element only if it already exists. Used by the clear paths, which must
+    /// not build an element purely to blank it.
     /// </summary>
     public static Text Peek(string name) =>
         Elements.TryGetValue(name, out Element_ element) && element.Instance != null
@@ -156,31 +130,39 @@ internal static class Overlay
 
     private static Text Build(string name, Element_ element)
     {
-        GameObject host = new GameObject(name);
-        host.transform.SetParent(Root, worldPositionStays: false);
+        GameObject clone = Object.Instantiate(template.gameObject, hudRoot);
+        clone.name = name;
+        clone.SetActive(true);
 
-        Text text = host.AddComponent<Text>();
-        text.font = Font;
-        text.fontSize = element.FontSize;
-        text.fontStyle = FontStyle.Bold;
+        // Whatever drove the original must not drive the copy.
+        foreach (HUDApp driver in clone.GetComponents<HUDApp>())
+            Object.Destroy(driver);
+
+        Text text = clone.GetComponent<Text>();
+        if (text == null)
+        {
+            Object.Destroy(clone);
+            return null;
+        }
+
+        text.text = string.Empty;
         text.alignment = element.Alignment;
         text.horizontalOverflow = HorizontalWrapMode.Overflow;
         text.verticalOverflow = VerticalWrapMode.Overflow;
         text.raycastTarget = false;
-        text.text = string.Empty;
+        text.supportRichText = true;
+        if (!Mathf.Approximately(element.FontScale, 1f))
+            text.fontSize = Mathf.Max(1, Mathf.RoundToInt(text.fontSize * element.FontScale));
 
         RectTransform rect = text.rectTransform;
         rect.anchorMin = element.Anchor;
         rect.anchorMax = element.Anchor;
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(600f, 40f);
+        rect.pivot = element.Pivot;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
         rect.anchoredPosition = element.Offset;
 
-        // Cheap readability win over a bright sky without needing an outline shader.
-        Outline outline = host.AddComponent<Outline>();
-        outline.effectColor = new Color(0f, 0f, 0f, 0.85f);
-        outline.effectDistance = new Vector2(1.5f, -1.5f);
-
+        builds++;
         ElementLayout.Register(name, rect);
         return text;
     }
@@ -240,9 +222,8 @@ internal static class Overlay
         }
 
         Plugin.Logger.LogInfo(
-            $"Overlay: canvas={canvas != null}, font={(font != null ? font.name : "<null>")}, "
-            + $"registered={Order.Count}, live={live}, canvasBuilds={rebuilds}, "
-            + $"tracked={(tracked != null ? "yes" : "no")}");
+            $"Overlay: template={(template != null ? template.font != null ? template.font.name : "<no font>" : "<null>")}, "
+            + $"hudRoot={hudRoot != null}, registered={Order.Count}, live={live}, builds={builds}");
     }
 }
 

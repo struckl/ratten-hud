@@ -267,9 +267,23 @@ draws nothing for the rest of the session — while the patch-based readouts car
 on working, which is what makes the failure look selective.
 
 Elements are therefore declared once with `Overlay.Register` and fetched through
-`Overlay.Element` every frame, so a lost canvas is simply rebuilt on the next
-frame that needs it. Clear paths go through `Overlay.Peek`, which never
-resurrects the canvas just to blank an already-empty readout.
+`Overlay.Element` every frame rather than held by the caller. Clear paths go
+through `Overlay.Peek`, which never builds an element purely to blank it.
+
+### How the readouts are drawn
+
+This plugin's own readouts are **clones of a real HUD label**, parented into the
+game's HUD canvas — the same trick the fuel time readout always used, which is
+why that one looked right from the start. Cloning inherits the HUD font, your
+HUD colour and text size, the material and the projection for free.
+
+The clone source is the climb rate label, taken from `HUDApp.RefreshSettings`:
+a plain single line of body text present on every airframe, so the copy is not
+styled as something outsized or pre-coloured for a warning.
+
+Readout text is deliberately **ASCII only**. The HUD font is the game's own and
+has no reason to carry an interpunct, an arrow or a multiplication sign, and a
+missing glyph on a missile warning is the worst possible place to discover that.
 
 ## Building
 

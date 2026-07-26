@@ -211,6 +211,9 @@ internal static class HUDAppLayoutPatch
 {
     private static void Postfix(HUDApp __instance)
     {
+        // Also the one place that reliably hands us a live HUD label to clone.
+        Overlay.OfferTemplate(__instance);
+
         if (!Plugin.LayoutEnabled.Value)
             return;
         if (__instance.transform is RectTransform rect)
