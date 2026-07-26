@@ -14,49 +14,53 @@ duplicates a callout, and neither plugin depends on the other.
 
 ## Threat readouts
 
-### Missile threat banner
+Every threat readout lives inside the game's own threat list — the stack of
+`Missile [ARH] 5.2km` lines the game already draws — so it inherits the stock
+font, layout, colours and flash instead of floating over the HUD.
 
-A flashing banner naming the countermeasure for every inbound seeker type at
-once, one line per type, most urgent first:
+### Missile defeat hint and time to impact
 
-| Seeker | Banner | Colour |
-| --- | --- | --- |
-| IR | `MISSILE · IR → FLARE` | orange |
-| ARH / SARH | `MISSILE · RADAR → NOTCH` | red |
-| Optical | `MISSILE · OPTICAL → HIDE` | white |
-| ARAD | `MISSILE · ARAD → RADAR OFF` | magenta |
+Each of the game's missile threat lines is extended in place with the
+countermeasure that defeats the seeker, and a live time to impact:
 
-Two missiles of the same type collapse into one line with a count suffix
-(`MISSILE · IR → FLARE ×3`). An unrecognised seeker type — a new game version,
-say — still shows as a generic `DEFEND` line rather than silently vanishing.
+```
+Missile [IR] 2.1km  FLARE  4.2s
+```
 
-The whole banner strobes off the closest missile's clock, ramping from a slow
-2 Hz pulse at 15 seconds out to a 10 Hz strobe inside 2 seconds.
+| Seeker | Hint |
+| --- | --- |
+| IR | `FLARE` |
+| ARH / SARH | `NOTCH` |
+| Optical | `HIDE` |
+| ARAD | `RADAR OFF` |
 
-### Time to impact
+An unrecognised seeker type — a new game version, say — still gets a generic
+`DEFEND` rather than silently vanishing. The line keeps the game's own threat
+colouring: yellow while the seeker searches, flashing red once it locks.
 
-Under the banner, a live countdown for the closest inbound: `IMPACT 4.2s`. It
-turns "am I flaring too early" into a number.
-
-The closure maths is the same one the game's own AI pilot uses to decide when to
-break and dispense, so the readout agrees with what the AI would do in your
-seat. The countdown hides itself when nothing is actually gaining on you, rather
-than showing a fictional number for a missile that has already been defeated.
+The closure maths behind the countdown is the same one the game's own AI pilot
+uses to decide when to break and dispense, so the number agrees with what the
+AI would do in your seat. It hides itself when nothing is actually gaining on
+you, rather than showing a fictional number for a missile that has already been
+defeated.
 
 ### Radar warning tags
 
 The stock RWR draws an undifferentiated arrow per emitter: something is painting
-you, but not what, and not how far along it is. This adds a strobe list tagged
-by state and named by unit type:
+you, but not what, and not how far along it is. This adds one line per emitter
+to the same threat list, cloned from the game's own threat entry prefab and
+coloured in the game's own threat vocabulary:
 
-| Tag | Meaning |
-| --- | --- |
-| `SEARCH` | Sweeping you, no track. |
-| `LOCK` | You are the tracked target. |
-| `LAUNCH` | A missile currently inbound was fired by this emitter. Flashes. |
+| Tag | Meaning | Style |
+| --- | --- | --- |
+| `Radar [MIG-29] SEARCH` | Sweeping you, no track. | Yellow, like a searching seeker. |
+| `Radar [SAM] LOCK` | You are the tracked target. | The red/green flash of a locked seeker. |
+| `Radar [MIG-29] LAUNCH` | A missile currently inbound was fired by this emitter. | Red blink, the missile warning light's cadence. |
 
-Contacts age out four seconds after their last sweep, matching the lifetime the
-game gives its own warning icons.
+Shooters sort first, then trackers, then everything merely sweeping — always
+below the game's own missile entries, which are more urgent. Contacts age out
+four seconds after their last sweep, matching the lifetime the game gives its
+own warning icons.
 
 `HideStockRadarWarning` suppresses the game's own directional wedges so the
 tagged list is the only radar warning display. It gates icon creation only —
@@ -90,17 +94,13 @@ HUD surfaces the state the game is already tracking:
 
 | Cue | Condition |
 | --- | --- |
-| `SHOOT` | All requirements met, inside the no-escape zone. Flashes. |
+| `SHOOT` | All requirements met, inside the no-escape zone. The game's own cue, untouched. |
 | `IN RANGE` | All requirements met, between NEZ and Rmax. |
 
-The game's own rejection reasons (`OUT OF RANGE`, `TOO CLOSE`, `OUT OF ARC`,
-`TOO SLOW`) are left exactly as they are.
-
-The cue lives in the game's own hint label, beside the range ladder.
-`ShootCueOverlay` can additionally draw it as a line under the centre of the
-HUD, but that is **off by default** — the game already prints MAX, MIN and NEZ
-next to the ladder, so it largely duplicates them, and it sits on the overlay
-canvas that draws above every other view.
+The cue lives in the game's own hint label beside the range ladder, in the
+stock style — the label's colour is never written, so every cue renders exactly
+as the game draws its own. The rejection reasons (`OUT OF RANGE`, `TOO CLOSE`,
+`OUT OF ARC`, `TOO SLOW`) are left exactly as they are.
 
 ### Target data block
 
@@ -205,11 +205,11 @@ Defaults to `pilot`, to keep downed pilots off the glass.
 
 ### Element offsets and declutter
 
-One config table controls offset, scale and visibility for every HUD element,
-the game's own and this plugin's alike:
+One config table controls offset, scale and visibility for the game's HUD
+elements:
 
 ```ini
-Elements = Climbrate:0,40;RadarWarnings:20,0,0.9;CountermeasureIndicator:0,0,1,false
+Elements = Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false
 ```
 
 Each entry is `Name:xOffset,yOffset[,scale][,visible]`. Positive Y is up, offsets
@@ -223,17 +223,17 @@ would flatten prefab scaling on gauges that ship scaled, re-show elements the
 game deliberately hid, and undo other plugins' positioning. `scale` multiplies
 the element's existing scale rather than replacing it, for the same reason.
 
-Game elements are named after the HUD component that drives them (`Climbrate`,
+Elements are named after the HUD component that drives them (`Climbrate`,
 `CountermeasureIndicator`, `WeaponIndicator`, …) rather than by GameObject name,
 because the component name is what the game's own code commits to. 28 of the
 game's 30 HUD elements can be placed this way; `ArtificialHorizon` and
 `GearIndicator` are the two exceptions, being the only elements that do not
 route through the shared settings refresh this hooks.
 
-This plugin's readouts register under `MissileBanner`, `ImpactCountdown`,
-`RadarWarnings`, `ShootCue` and `TargetData`. The contact labels do not: they
-follow their markers around the glass rather than sitting anywhere fixed, so
-they have their own `LabelTextScale` instead.
+This plugin's own readouts live inside game elements — the threat list, the
+hint label, the target block, the fuel gauge — so they move and scale with
+their hosts rather than having entries of their own. The contact labels follow
+their markers around the glass and have their own `LabelTextScale` instead.
 
 #### The climb rate default
 
@@ -251,13 +251,12 @@ Every feature has its own switch in
 
 | Section | Key | Default |
 | --- | --- | --- |
-| Threats | `MissileBanner` | `true` |
+| Threats | `MissileDefeatHint` | `true` |
 | Threats | `ImpactCountdown` | `true` |
 | Threats | `RadarWarningTags` | `true` |
 | Threats | `HideStockRadarWarning` | `false` |
 | Threats | `CountermeasureColours` | `true` |
 | Weapons | `ShootCue` | `true` |
-| Weapons | `ShootCueOverlay` | `false` |
 | Weapons | `TargetDataBlock` | `true` |
 | Contacts | `ContactLabels` | `true` |
 | Contacts | `LabelFriendlyAircraft` | `false` |
@@ -284,47 +283,16 @@ countermeasure indicator and no flare count — from the game or from this plugi
 `PlayerSettings.hudWeapons` is checked deliberately rather than forced, so the
 setting keeps meaning what it says.
 
-The plugin logs one diagnostic line the first time you are actually in a
-cockpit, naming every gate a missing readout can be stuck behind:
-
-```
-[Info   :Ratten HUD] Overlay: canvas=True, font=LegacyRuntime, registered=4, live=4, canvasBuilds=2, tracked=yes
-```
-
-`font=<null>` means the overlay text is drawing with no font, which renders
-nothing. `canvas=False` means the canvas was destroyed. `canvasBuilds` counts
-how many times it has had to be rebuilt — see below.
-
-#### Why the overlay rebuilds itself
-
-BepInEx runs plugin `Awake` from a static constructor, before the first scene
-has finished loading:
-
-```
-BepInEx.Bootstrap.Chainloader:Start()
-UnityEngine.InputSystem.InputSystem:.cctor()
-```
-
-`DontDestroyOnLoad` does not stick that early, so the canvas built at load time
-is destroyed by the first `LoadSceneMode.Single` into `GameWorld`. Anything
-holding a `Text` from load time is then holding a destroyed object and silently
-draws nothing for the rest of the session — while the patch-based readouts carry
-on working, which is what makes the failure look selective.
-
-Elements are therefore declared once with `Overlay.Register` and fetched through
-`Overlay.Element` every frame rather than held by the caller. Clear paths go
-through `Overlay.Peek`, which never builds an element purely to blank it.
-
 ### How the readouts are drawn
 
-This plugin's own readouts are **clones of a real HUD label**, parented into the
-game's HUD canvas — the same trick the fuel time readout always used, which is
-why that one looked right from the start. Cloning inherits the HUD font, your
-HUD colour and text size, the material and the projection for free.
-
-The clone source is the climb rate label, taken from `HUDApp.RefreshSettings`:
-a plain single line of body text present on every airframe, so the copy is not
-styled as something outsized or pre-coloured for a warning.
+There is no overlay canvas and nothing floats over the screen. Every readout
+either **extends text the game already wrote** (the threat list entries, the
+target block, the shoot hint) or is a **clone of a real HUD label parented next
+to its host** (the fuel time under the fuel gauge, the radar tags in the threat
+list, the contact labels in the icon layer). Extending in place inherits the
+font, the player's HUD colour and text size, the material, the projection and
+the game's own flash cadences for free — which is why every readout sits on the
+glass like the game drew it.
 
 Readout text is deliberately **ASCII only**. The HUD font is the game's own and
 has no reason to carry an interpunct, an arrow or a multiplication sign, and a

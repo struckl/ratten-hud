@@ -10,12 +10,12 @@ public class Plugin : BaseUnityPlugin
 {
     public const string Guid = "dev.sewerlabs.rattenhud";
     public const string Name = "Ratten HUD";
-    public const string Version = "1.0.0";
+    public const string Version = "2.0.0";
 
     internal static new ManualLogSource Logger;
 
     // Threat readouts
-    internal static ConfigEntry<bool> MissileBanner;
+    internal static ConfigEntry<bool> MissileDefeatHint;
     internal static ConfigEntry<bool> ImpactCountdown;
     internal static ConfigEntry<bool> RadarTags;
     internal static ConfigEntry<bool> HideStockRadarWarning;
@@ -23,7 +23,6 @@ public class Plugin : BaseUnityPlugin
 
     // Weapon readouts
     internal static ConfigEntry<bool> ShootCue;
-    internal static ConfigEntry<bool> ShootCueOverlay;
     internal static ConfigEntry<bool> TargetDataBlock;
 
     // Contact readouts
@@ -54,9 +53,6 @@ public class Plugin : BaseUnityPlugin
         ElementLayout.Initialize();
         Declutter.Initialize();
         FuelTime.Initialize();
-        MissileThreatBanner.Initialize();
-        RadarWarningTags.Initialize();
-        RattenHUD.ShootCue.Initialize();
 
         new Harmony(Guid).PatchAll();
         Logger.LogInfo($"{Name} {Version} loaded.");
@@ -64,27 +60,24 @@ public class Plugin : BaseUnityPlugin
 
     private void Update()
     {
-        Overlay.LogDiagnosticsOnce();
-
-        MissileThreatBanner.Tick();
         RadarWarningTags.Tick();
         RattenHUD.ShootCue.Tick();
     }
 
     private void BindConfig()
     {
-        MissileBanner = Config.Bind(
-            "Threats", "MissileBanner", true,
-            "Flashing banner naming the countermeasure for every inbound missile "
-            + "seeker type, with a count per type. The flash rate ramps up as the "
-            + "closest missile closes.");
+        MissileDefeatHint = Config.Bind(
+            "Threats", "MissileDefeatHint", true,
+            "Append the countermeasure that defeats the seeker to each entry in "
+            + "the game's missile threat list: FLARE, NOTCH, HIDE or RADAR OFF.");
         ImpactCountdown = Config.Bind(
             "Threats", "ImpactCountdown", true,
-            "Live time-to-impact for the closest inbound missile, under the banner.");
+            "Append the estimated time to impact to each entry in the game's "
+            + "missile threat list, while the missile is actually gaining.");
         RadarTags = Config.Bind(
             "Threats", "RadarWarningTags", true,
-            "List radar emitters painting you, tagged SEARCH / LOCK / LAUNCH and "
-            + "named by unit type.");
+            "Add radar emitters painting you to the game's threat list, tagged "
+            + "SEARCH / LOCK / LAUNCH and named by unit type.");
         HideStockRadarWarning = Config.Bind(
             "Threats", "HideStockRadarWarning", false,
             "Suppress the game's own directional radar warning arrows, leaving "
@@ -98,15 +91,10 @@ public class Plugin : BaseUnityPlugin
 
         ShootCue = Config.Bind(
             "Weapons", "ShootCue", true,
-            "Show the firing cue across the whole valid envelope: SHOOT inside the "
-            + "no-escape zone, IN RANGE between it and Rmax. The game computes this "
-            + "but only ever displays it inside the no-escape zone.");
-        ShootCueOverlay = Config.Bind(
-            "Weapons", "ShootCueOverlay", false,
-            "Additionally draw the cue and its ranges as a line under the centre "
-            + "of the HUD. Off by default: the game already shows MAX, MIN and "
-            + "NEZ beside the range ladder, and this line sits on the overlay "
-            + "canvas that draws above every other view.");
+            "Show the firing cue across the whole valid envelope: the game's own "
+            + "SHOOT inside the no-escape zone, IN RANGE between it and Rmax. The "
+            + "game computes this but only ever displays it inside the no-escape "
+            + "zone.");
         TargetDataBlock = Config.Bind(
             "Weapons", "TargetDataBlock", true,
             "Add closure, aspect and altitude to the selected target readout.");
@@ -155,19 +143,17 @@ public class Plugin : BaseUnityPlugin
             + "list of Name:xOffset,yOffset[,scale][,visible].\n"
             + "Positive Y is up, offsets are in 1080p reference pixels, and a "
             + "trailing 'false' hides the element entirely (declutter).\n"
-            + "Game elements are named after the HUD component that drives them: "
+            + "Elements are named after the HUD component that drives them: "
             + "Climbrate, CountermeasureIndicator, FuelGauge, SpeedGauge, "
             + "WeaponIndicator, and so on. ArtificialHorizon and GearIndicator "
             + "cannot be moved this way; they are the only two HUD elements that "
             + "do not route through the shared settings refresh.\n"
-            + "This plugin's own readouts are named MissileBanner, "
-            + "ImpactCountdown, RadarWarnings, ShootCue, TargetData.\n"
             + "The default Climbrate:0,40 is the old MKMods "
             + "ClimbRateVerticalOffset, which now lives here: the stock climb "
             + "rate readout sits low enough to collide with its neighbours.\n"
             + "If you still run MKMods alongside this, set its "
             + "ClimbRateVerticalOffset to 0 first, or the readout moves twice.\n"
-            + "Example: Climbrate:0,40;RadarWarnings:20,0,0.9;CountermeasureIndicator:0,0,1,false");
+            + "Example: Climbrate:0,40;SpeedGauge:20,0,0.9;CountermeasureIndicator:0,0,1,false");
 
         ObjectiveLabel = Config.Bind(
             "Declutter", "ObjectiveLabel", ObjectiveLabelMode.Hidden,

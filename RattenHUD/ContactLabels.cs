@@ -237,9 +237,9 @@ internal static class ContactLabels
     /// <summary>
     /// Clones the game's own target readout. Cloning a live HUD label rather
     /// than building a Text from nothing inherits the HUD font, material and
-    /// projection, and puts the tag in the same layer the markers are drawn in
-    /// -- the same reasoning as <see cref="Overlay"/>, with a nearer template:
-    /// the target block is the one label the game already anchors to a marker.
+    /// projection, and puts the tag in the same layer the markers are drawn in.
+    /// The target block is the right template because it is the one label the
+    /// game already anchors to a marker.
     /// </summary>
     private static Text Build(Text template, Transform layer)
     {

@@ -23,27 +23,15 @@ internal readonly struct LayoutRule
 }
 
 /// <summary>
-/// Declutter and reposition table for the whole HUD, the game's elements and
-/// this plugin's alike.
+/// Declutter and reposition table for the game's HUD elements.
 ///
-/// Game elements are keyed by the name of the <see cref="HUDApp"/> component
-/// that drives them (Climbrate, CountermeasureIndicator, ...) rather than by
+/// Elements are keyed by the name of the <see cref="HUDApp"/> component that
+/// drives them (Climbrate, CountermeasureIndicator, ...) rather than by
 /// GameObject name, because the component name is what the game's own code
-/// commits to and so survives cosmetic prefab renames. This plugin's own
-/// readouts register under the names in <see cref="Elements"/>.
+/// commits to and so survives cosmetic prefab renames.
 /// </summary>
 internal static class ElementLayout
 {
-    /// <summary>Names this plugin registers, so the config comment can list them.</summary>
-    internal static class Elements
-    {
-        public const string MissileBanner = "MissileBanner";
-        public const string ImpactCountdown = "ImpactCountdown";
-        public const string RadarWarnings = "RadarWarnings";
-        public const string ShootCue = "ShootCue";
-        public const string TargetData = "TargetData";
-    }
-
     private static readonly Dictionary<string, LayoutRule> Rules =
         new Dictionary<string, LayoutRule>();
 
@@ -70,9 +58,12 @@ internal static class ElementLayout
     // must stay that way.
     private static readonly HashSet<int> Modified = new HashSet<int>();
 
-    // Our own elements, so a config reload can re-apply to them immediately.
-    private static readonly Dictionary<string, RectTransform> Owned =
+    // Every element that has come through the settings refresh, so a config
+    // reload can re-apply to all of them immediately instead of waiting for
+    // the player to open the settings menu.
+    private static readonly Dictionary<string, RectTransform> Seen =
         new Dictionary<string, RectTransform>();
+    private static readonly List<string> SeenNames = new List<string>();
 
     public static void Initialize()
     {
@@ -80,7 +71,7 @@ internal static class ElementLayout
         Plugin.Layout.SettingChanged += (_, _) =>
         {
             Parse(Plugin.Layout.Value);
-            ReapplyOwned();
+            ReapplySeen();
         };
     }
 
@@ -136,19 +127,15 @@ internal static class ElementLayout
     private static bool TryParseFloat(string value, out float result) =>
         float.TryParse(value.Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out result);
 
-    /// <summary>Registers one of this plugin's own elements and applies its rule.</summary>
-    public static void Register(string name, RectTransform rect)
+    private static void ReapplySeen()
     {
-        Owned[name] = rect;
-        Apply(name, rect);
-    }
-
-    private static void ReapplyOwned()
-    {
-        foreach (KeyValuePair<string, RectTransform> owned in Owned)
+        // Over a copy of the names: Apply writes back into Seen.
+        SeenNames.Clear();
+        SeenNames.AddRange(Seen.Keys);
+        foreach (string name in SeenNames)
         {
-            if (owned.Value != null)
-                Apply(owned.Key, owned.Value);
+            if (Seen[name] != null)
+                Apply(name, Seen[name]);
         }
     }
 
@@ -168,6 +155,7 @@ internal static class ElementLayout
         if (rect == null)
             return;
 
+        Seen[name] = rect;
         int id = rect.GetInstanceID();
         bool hasRule = Rules.TryGetValue(name, out LayoutRule rule);
 
@@ -211,9 +199,6 @@ internal static class HUDAppLayoutPatch
 {
     private static void Postfix(HUDApp __instance)
     {
-        // Also the one place that reliably hands us a live HUD label to clone.
-        Overlay.OfferTemplate(__instance);
-
         if (!Plugin.LayoutEnabled.Value)
             return;
         if (__instance.transform is RectTransform rect)

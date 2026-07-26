@@ -10,19 +10,22 @@ namespace RattenHUD;
 /// emitter: you can see that something is painting you but not what, nor
 /// whether it has progressed from sweeping to tracking to shooting.
 ///
-/// This keeps a small table of emitters seen recently and renders it as a
-/// strobe list, tagged SEARCH / LOCK / LAUNCH and named by unit code.
+/// This adds one line per emitter to the game's own threat list, cloned from
+/// the same prefab the game uses for its missile entries, so the tags sit in
+/// the list the pilot already watches and inherit its font and layout:
+///
+///     Radar [MIG-29] LOCK
+///
+/// The colours are the game's own threat vocabulary: yellow for a search
+/// sweep, the red/green lock flash the missile entries use for a track, and a
+/// red blink -- the missile warning light's cadence -- for an emitter with a
+/// missile currently in the air.
 /// </summary>
 internal static class RadarWarningTags
 {
     /// <summary>How long an emitter stays listed after its last sweep. Matches
     /// the lifetime the game gives its own directional warning icons.</summary>
     private const float ContactLifetime = 4f;
-    private const float LaunchFlashHz = 5f;
-
-    private static readonly Color Search = new Color(0.55f, 0.95f, 0.55f);
-    private static readonly Color Lock = new Color(1f, 0.75f, 0.15f);
-    private static readonly Color Launch = new Color(1f, 0.25f, 0.25f);
 
     private sealed class Contact
     {
@@ -31,30 +34,33 @@ internal static class RadarWarningTags
         public float LastSeen;
     }
 
+    private sealed class Row
+    {
+        public GameObject Root;
+        public Text Text;
+    }
+
     private static readonly Dictionary<Unit, Contact> Contacts = new Dictionary<Unit, Contact>();
     private static readonly List<Unit> Expired = new List<Unit>();
     private static readonly List<Contact> Sorted = new List<Contact>();
-    private static readonly System.Text.StringBuilder Builder = new System.Text.StringBuilder(256);
+    private static readonly List<Row> Rows = new List<Row>();
 
-    private static bool registered;
+    // The game's threat list, its per-threat prefab and the aircraft it serves,
+    // captured from ThreatList.SetAircraft below.
+    private static ThreatList threatList;
+    private static GameObject rowPrefab;
+    private static Aircraft aircraft;
 
-    public static void Initialize()
+    public static void OnThreatList(ThreatList list, Aircraft aircraftIn, GameObject prefab)
     {
-        if (!Plugin.RadarTags.Value)
-            return;
+        // A new seat: rows parented to the old list die with it, and contacts
+        // swept against the old aircraft are meaningless for the new one.
+        DestroyRows();
+        Contacts.Clear();
 
-        // Left pivot, not centre: with a centre pivot the text box straddles the
-        // anchor and a left-aligned list starts half a box-width further left,
-        // which ran the tags off the edge of the screen.
-        Overlay.Register(
-            ElementLayout.Elements.RadarWarnings,
-            anchor: new Vector2(0f, 0.5f),
-            pivot: new Vector2(0f, 0.5f),
-            offset: new Vector2(230f, 0f),
-            fontScale: 0.9f,
-            TextAnchor.MiddleLeft);
-
-        registered = true;
+        threatList = list;
+        rowPrefab = prefab;
+        aircraft = aircraftIn;
     }
 
     /// <summary>Records a sweep. Called from the radar warning patch below.</summary>
@@ -72,16 +78,18 @@ internal static class RadarWarningTags
         contact.LastSeen = Time.timeSinceLevelLoad;
     }
 
-    public static void Reset() => Contacts.Clear();
-
     public static void Tick()
     {
-        if (!registered)
-            return;
-
-        if (!Plugin.RadarTags.Value || !Overlay.InCockpit)
+        if (!Plugin.RadarTags.Value)
         {
-            Clear();
+            HideRows();
+            return;
+        }
+
+        if (threatList == null || aircraft == null || rowPrefab == null)
+        {
+            Contacts.Clear();
+            HideRows();
             return;
         }
 
@@ -97,11 +105,10 @@ internal static class RadarWarningTags
 
         if (Contacts.Count == 0)
         {
-            Clear();
+            HideRows();
             return;
         }
 
-        Aircraft aircraft = Overlay.PlayerAircraft;
         MissileWarning warning = aircraft.GetMissileWarningSystem();
 
         Sorted.Clear();
@@ -110,36 +117,99 @@ internal static class RadarWarningTags
         // Shooters first, then trackers, then everything merely sweeping.
         Sorted.Sort((a, b) => Rank(b, warning).CompareTo(Rank(a, warning)));
 
-        Builder.Length = 0;
         for (int i = 0; i < Sorted.Count; i++)
         {
-            Contact contact = Sorted[i];
-            if (i > 0)
-                Builder.Append('\n');
+            Row row = RowAt(i);
+            if (row == null)
+                return;
 
+            Contact contact = Sorted[i];
             bool launched = HasLaunched(contact.Emitter, warning);
             string tag = launched ? "LAUNCH" : contact.IsTarget ? "LOCK" : "SEARCH";
-            Color colour = launched ? Launch : contact.IsTarget ? Lock : Search;
 
-            float alpha = 1f;
+            row.Root.SetActive(true);
+            row.Text.text = $"Radar [{EmitterName(contact.Emitter)}] {tag}";
+
+            // The game's own threat colours: yellow while searched, the missile
+            // entries' red/green flash for a track, and the missile warning
+            // light's red blink for an emitter that has actually fired.
             if (launched)
-                alpha = Mathf.Repeat(Time.unscaledTime * LaunchFlashHz, 1f) < 0.5f ? 1f : 0.25f;
+            {
+                row.Text.color = Color.red;
+                row.Text.enabled = Mathf.Sin(Time.timeSinceLevelLoad * 20f) > 0f;
+            }
+            else
+            {
+                row.Text.enabled = true;
+                row.Text.color = contact.IsTarget
+                    ? Color.red + Color.green * Mathf.Sin(Time.realtimeSinceStartup * 20f)
+                    : Color.yellow;
+            }
 
-            Builder.Append("<color=#")
-                   .Append(ColorUtility.ToHtmlStringRGB(colour))
-                   .Append(Mathf.RoundToInt(alpha * 255f).ToString("X2"))
-                   .Append('>')
-                   // No PadRight: the HUD font is proportional, so padding buys
-                   // ragged pseudo-columns rather than aligned ones.
-                   .Append(tag)
-                   .Append(' ')
-                   .Append(UnitNaming.TypeCode(contact.Emitter))
-                   .Append("</color>");
+            // Missiles are more urgent than the radars that fired them; keep
+            // the tags below the game's own entries, in threat order.
+            row.Root.transform.SetAsLastSibling();
         }
 
-        Text readout = Overlay.Element(ElementLayout.Elements.RadarWarnings);
-        if (readout != null)
-            readout.text = Builder.ToString();
+        for (int i = Sorted.Count; i < Rows.Count; i++)
+        {
+            if (Rows[i].Root != null)
+                Rows[i].Root.SetActive(false);
+        }
+    }
+
+    private static Row RowAt(int index)
+    {
+        // Drop rows destroyed behind our back (a scene change we did not see)
+        // before indexing, or the pool hands out dead entries.
+        for (int i = Rows.Count - 1; i >= 0; i--)
+        {
+            if (Rows[i].Root == null)
+                Rows.RemoveAt(i);
+        }
+
+        while (Rows.Count <= index)
+        {
+            GameObject clone = Object.Instantiate(rowPrefab, threatList.transform);
+            clone.name = "RattenHUDRadarTag";
+
+            // Whatever drove the original must not drive the copy: ThreatItem
+            // would try to resolve a missile this row does not have.
+            foreach (ThreatItem driver in clone.GetComponents<ThreatItem>())
+                Object.Destroy(driver);
+
+            Text text = clone.GetComponentInChildren<Text>(includeInactive: true);
+            if (text == null)
+            {
+                Object.Destroy(clone);
+                Plugin.Logger.LogError("Threat item prefab has no Text; radar warning tags disabled.");
+                rowPrefab = null;
+                return null;
+            }
+
+            Rows.Add(new Row { Root = clone, Text = text });
+        }
+
+        return Rows[index];
+    }
+
+    private static void HideRows()
+    {
+        foreach (Row row in Rows)
+        {
+            if (row.Root != null && row.Root.activeSelf)
+                row.Root.SetActive(false);
+        }
+    }
+
+    private static void DestroyRows()
+    {
+        foreach (Row row in Rows)
+        {
+            if (row.Root != null)
+                Object.Destroy(row.Root);
+        }
+        Rows.Clear();
     }
 
     private static int Rank(Contact contact, MissileWarning warning)
@@ -163,12 +233,27 @@ internal static class RadarWarningTags
         return false;
     }
 
-    private static void Clear()
+    private static string EmitterName(Unit emitter)
     {
-        Text readout = Overlay.Peek(ElementLayout.Elements.RadarWarnings);
-        if (readout != null && readout.text.Length > 0)
-            readout.text = string.Empty;
+        if (emitter == null)
+            return "UNKNOWN";
+        // definition.code is the short type code the game already uses for the
+        // selected target readout, e.g. the airframe or SAM designation.
+        return emitter.definition != null && !string.IsNullOrEmpty(emitter.definition.code)
+            ? emitter.definition.code
+            : emitter.name;
     }
+}
+
+/// <summary>
+/// Captures the game's threat list, its per-threat prefab and the aircraft it
+/// serves, at the one moment the game wires all three together.
+/// </summary>
+[HarmonyPatch(typeof(ThreatList), nameof(ThreatList.SetAircraft))]
+internal static class ThreatListCapturePatch
+{
+    private static void Postfix(ThreatList __instance, Aircraft aircraft, GameObject ___threatItemPrefab) =>
+        RadarWarningTags.OnThreatList(__instance, aircraft, ___threatItemPrefab);
 }
 
 /// <summary>
