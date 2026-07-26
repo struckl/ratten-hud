@@ -25,6 +25,10 @@ public class Plugin : BaseUnityPlugin
     internal static ConfigEntry<bool> ShootCueOverlay;
     internal static ConfigEntry<bool> TargetDataBlock;
 
+    // Flight readouts
+    internal static ConfigEntry<bool> FuelTimeReadout;
+    internal static ConfigEntry<float> FuelTimeUpdateRate;
+
     // Layout
     internal static ConfigEntry<bool> LayoutEnabled;
     internal static ConfigEntry<string> Layout;
@@ -41,6 +45,7 @@ public class Plugin : BaseUnityPlugin
         BindConfig();
         ElementLayout.Initialize();
         Declutter.Initialize();
+        FuelTime.Initialize();
         MissileThreatBanner.Initialize();
         RadarWarningTags.Initialize();
         RattenHUD.ShootCue.Initialize();
@@ -89,6 +94,15 @@ public class Plugin : BaseUnityPlugin
         TargetDataBlock = Config.Bind(
             "Weapons", "TargetDataBlock", true,
             "Add closure, aspect and altitude to the selected target readout.");
+
+        FuelTimeReadout = Config.Bind(
+            "Flight", "FuelTimeReadout", true,
+            "Show the estimated remaining fuel time next to the fuel gauge. The "
+            + "estimate comes from fuel burned between samples, so it tracks the "
+            + "current throttle setting rather than a fixed rate.");
+        FuelTimeUpdateRate = Config.Bind(
+            "Flight", "FuelTimeUpdateRate", 10f,
+            "Seconds between fuel level samples used to estimate the remaining time.");
 
         LayoutEnabled = Config.Bind(
             "Layout", "Enabled", true,

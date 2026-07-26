@@ -119,6 +119,19 @@ readout is anchored to the target marker, so every extra line pushes it further
 across the glass — and with several targets selected there are several markers
 competing for the same space.
 
+## Flight readouts
+
+### Fuel time
+
+An estimated remaining fuel time in minutes, `(42m)`, under the fuel gauge
+reading. The estimate comes from the fuel actually burned between samples, so it
+follows your current throttle setting rather than assuming a fixed rate — it
+will drop hard in afterburner and recover when you pull back.
+
+Ported from MKMods, which has been retired in favour of the standalone plugins.
+The matching voice callouts ("fuel low", "bingo fuel") live in
+[Bitching Ratte](../Bitching%20Ratte).
+
 ## Declutter
 
 ### Objective label
@@ -200,6 +213,8 @@ Every feature has its own switch in
 | Weapons | `ShootCue` | `true` |
 | Weapons | `ShootCueOverlay` | `false` |
 | Weapons | `TargetDataBlock` | `true` |
+| Flight | `FuelTimeReadout` | `true` |
+| Flight | `FuelTimeUpdateRate` | `10` |
 | Layout | `Enabled` | `true` |
 | Layout | `Elements` | `Climbrate:0,40` |
 | Declutter | `ObjectiveLabel` | `Hidden` |
