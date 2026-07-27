@@ -28,7 +28,7 @@ internal static class FuelTime
 
     public static void Initialize()
     {
-        if (!Plugin.FuelTimeReadout.Value)
+        if (!Plugin.On(Plugin.FuelTimeReadout))
             return;
         sampleIntervalSeconds = Plugin.FuelTimeUpdateRate.Value;
     }
@@ -103,7 +103,7 @@ internal static class FuelGaugePatches
     [HarmonyPatch("Initialize")]
     private static void Initialize(Aircraft aircraft)
     {
-        if (Plugin.FuelTimeReadout.Value && aircraft != null)
+        if (Plugin.On(Plugin.FuelTimeReadout) && aircraft != null)
             FuelTime.OnGaugeInitialized(aircraft);
     }
 
@@ -111,7 +111,7 @@ internal static class FuelGaugePatches
     [HarmonyPatch("Refresh")]
     private static void Refresh(FuelGauge __instance, Aircraft ___aircraft, Text ___fuelLabel)
     {
-        if (Plugin.FuelTimeReadout.Value)
+        if (Plugin.On(Plugin.FuelTimeReadout))
             FuelTime.OnGaugeRefreshed(__instance, ___aircraft, ___fuelLabel);
     }
 }

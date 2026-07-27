@@ -33,7 +33,7 @@ internal static class CountermeasureReadoutPatch
         Text ___counterName,
         Text ___counterAmmo)
     {
-        if (!Plugin.CountermeasureColours.Value || ___aircraft == null || !PlayerSettings.hudWeapons)
+        if (!Plugin.On(Plugin.CountermeasureColours) || ___aircraft == null || !PlayerSettings.hudWeapons)
             return;
 
         Countermeasure active = ___aircraft.countermeasureManager.GetActiveCountermeasure();

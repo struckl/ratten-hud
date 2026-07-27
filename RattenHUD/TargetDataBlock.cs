@@ -24,7 +24,7 @@ internal static class TargetDataBlockPatch
     {
         // The game returns false when there is nothing to show, and in that
         // case has not written a readout for us to extend.
-        if (!__result || !Plugin.TargetDataBlock.Value)
+        if (!__result || !Plugin.On(Plugin.TargetDataBlock))
             return;
         if (___targetInfo == null || ___aircraft == null || ___targetList == null || ___targetList.Count == 0)
             return;

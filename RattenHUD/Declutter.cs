@@ -88,7 +88,7 @@ internal static class MarkerFilterPatch
 {
     private static bool Prefix(PersistentID id)
     {
-        if (!Plugin.HideMarkers.Value)
+        if (!Plugin.On(Plugin.HideMarkers))
             return true;
 
         if (UnitRegistry.TryGetUnit(id, out Unit unit) && Declutter.IsMarkerHidden(unit))
@@ -109,7 +109,7 @@ internal static class ObjectiveLabelPatch
         MissionPosition.PositionResult result,
         UnityEngine.UI.Text ___objectiveInfo)
     {
-        if (___objectiveInfo == null)
+        if (___objectiveInfo == null || !Plugin.Enabled.Value)
             return;
 
         switch (Plugin.ObjectiveLabel.Value)

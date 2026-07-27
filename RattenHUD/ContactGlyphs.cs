@@ -62,7 +62,7 @@ internal static class ContactGlyphs
     /// </summary>
     public static void Update(CombatHUD hud, List<HUDUnitMarker> markers, Text template)
     {
-        if (!Plugin.ContactGlyphs.Value)
+        if (!Plugin.On(Plugin.ContactGlyphs))
         {
             Clear();
             return;
