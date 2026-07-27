@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace RattenHUD;
 
@@ -17,6 +17,9 @@ namespace RattenHUD;
 /// the material and the projection for free -- the same trick the fuel time
 /// readout has always used, which is why that one looked right from the start.
 ///
+/// The game's HUD labels are TextMeshPro (the 2025-07 update migrated them from
+/// UnityEngine.UI.Text), so everything here speaks <see cref="TextMeshProUGUI"/>.
+///
 /// Elements are declared once with <see cref="Register"/> and fetched through
 /// <see cref="Element"/> every frame rather than held by the caller, so a HUD
 /// rebuilt by a scene load or an aircraft change is simply picked up again.
@@ -30,15 +33,15 @@ internal static class Overlay
         public Vector2 Pivot;
         public Vector2 Offset;
         public float FontScale;
-        public TextAnchor Alignment;
-        public Text Instance;
+        public TextAlignmentOptions Alignment;
+        public TextMeshProUGUI Instance;
     }
 
     private static readonly Dictionary<string, Element_> Elements = new Dictionary<string, Element_>();
     private static readonly List<string> Order = new List<string>();
 
     // A live HUD label to clone, and the canvas it belongs to.
-    private static Text template;
+    private static TextMeshProUGUI template;
     private static Transform hudRoot;
 
     // The HUD currently flying the player, captured from the game's own aircraft
@@ -47,6 +50,9 @@ internal static class Overlay
 
     private static bool loggedDiagnostics;
     private static int builds;
+
+    private static readonly System.Reflection.FieldInfo AppTypeField =
+        HarmonyLib.AccessTools.Field(typeof(HUDApp), "type");
 
     /// <summary>
     /// Offered every HUD element on every settings refresh; keeps the first
@@ -57,9 +63,6 @@ internal static class Overlay
     /// ordinary body styling rather than something outsized or coloured for a
     /// warning.
     /// </summary>
-    private static readonly System.Reflection.FieldInfo AppTypeField =
-        HarmonyLib.AccessTools.Field(typeof(HUDApp), "type");
-
     public static void OfferTemplate(HUDApp app)
     {
         if (template != null || !(app is Climbrate))
@@ -71,7 +74,7 @@ internal static class Overlay
         if (AppTypeField.GetValue(app).ToString() != "HUD")
             return;
 
-        Text found = app.GetComponentInChildren<Text>(includeInactive: true);
+        TextMeshProUGUI found = app.GetComponentInChildren<TextMeshProUGUI>(includeInactive: true);
         if (found == null || found.canvas == null)
             return;
 
@@ -92,7 +95,7 @@ internal static class Overlay
         Vector2 pivot,
         Vector2 offset,
         float fontScale,
-        TextAnchor alignment)
+        TextAlignmentOptions alignment)
     {
         if (!Elements.ContainsKey(name))
             Order.Add(name);
@@ -113,7 +116,7 @@ internal static class Overlay
     /// offered a template, which is the same as saying null until there is a HUD
     /// to draw on.
     /// </summary>
-    public static Text Element(string name)
+    public static TextMeshProUGUI Element(string name)
     {
         if (!Elements.TryGetValue(name, out Element_ element))
             return null;
@@ -132,12 +135,12 @@ internal static class Overlay
     /// The element only if it already exists. Used by the clear paths, which must
     /// not build an element purely to blank it.
     /// </summary>
-    public static Text Peek(string name) =>
+    public static TextMeshProUGUI Peek(string name) =>
         Elements.TryGetValue(name, out Element_ element) && element.Instance != null
             ? element.Instance
             : null;
 
-    private static Text Build(string name, Element_ element)
+    private static TextMeshProUGUI Build(string name, Element_ element)
     {
         GameObject clone = Object.Instantiate(template.gameObject, hudRoot);
         clone.name = name;
@@ -147,7 +150,7 @@ internal static class Overlay
         foreach (HUDApp driver in clone.GetComponents<HUDApp>())
             Object.Destroy(driver);
 
-        Text text = clone.GetComponent<Text>();
+        TextMeshProUGUI text = clone.GetComponent<TextMeshProUGUI>();
         if (text == null)
         {
             Object.Destroy(clone);
@@ -156,12 +159,12 @@ internal static class Overlay
 
         text.text = string.Empty;
         text.alignment = element.Alignment;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.enableWordWrapping = false;
+        text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = false;
-        text.supportRichText = true;
+        text.richText = true;
         if (!Mathf.Approximately(element.FontScale, 1f))
-            text.fontSize = Mathf.Max(1, Mathf.RoundToInt(text.fontSize * element.FontScale));
+            text.fontSize = Mathf.Max(1f, text.fontSize * element.FontScale);
 
         RectTransform rect = text.rectTransform;
         rect.anchorMin = element.Anchor;

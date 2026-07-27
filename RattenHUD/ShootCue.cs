@@ -1,6 +1,6 @@
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 
 namespace RattenHUD;
 
@@ -31,7 +31,7 @@ internal static class ShootCue
 
     // The game's own hint label while we are forcing it on, kept so a stale cue
     // can hand it back rather than leaving our text stranded on the HUD.
-    private static Text drivenHint;
+    private static TextMeshProUGUI drivenHint;
 
     /// <summary>
     /// Watchdog. The cue is written from a patch on the missile UI, and that
@@ -62,7 +62,7 @@ internal static class ShootCue
     /// Called from the <see cref="HUDMissileState"/> postfix with the envelope
     /// the game just finished computing.
     /// </summary>
-    public static void Apply(Text hint, bool requirementsMet, float targetDist, float noEscapeRange)
+    public static void Apply(TextMeshProUGUI hint, bool requirementsMet, float targetDist, float noEscapeRange)
     {
         // Liveness, recorded whether or not there is anything to show: it means
         // the missile UI is still driving us.
@@ -112,7 +112,7 @@ internal static class ShootCuePatch
         bool ___allRequirementsMet,
         float ___maxTargetDist,
         float ___noEscapeRange,
-        Text ___hint)
+        TextMeshProUGUI ___hint)
     {
         if (!Plugin.On(Plugin.ShootCue))
             return;

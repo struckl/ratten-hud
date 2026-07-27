@@ -129,7 +129,7 @@ internal static class ThreatReadout
             pivot: new Vector2(0.5f, 0f),
             offset: new Vector2(0f, 155f),
             fontScale: 1f,
-            TextAnchor.LowerCenter);
+            TMPro.TextAlignmentOptions.Bottom);
 
         // The right-hand flight column, a line of space under the altitude
         // block (which the default layout table pulls up under the climb
@@ -144,7 +144,7 @@ internal static class ThreatReadout
             pivot: new Vector2(1f, 1f),
             offset: new Vector2(300f, -22f),
             fontScale: 1f,
-            TextAnchor.UpperRight);
+            TMPro.TextAlignmentOptions.TopRight);
     }
 
     /// <summary>Records a sweep. Called from the radar warning patch below.</summary>
@@ -357,7 +357,7 @@ internal static class ThreatReadout
             return;
         }
 
-        Text readout = Overlay.Element(element);
+        TMPro.TextMeshProUGUI readout = Overlay.Element(element);
         if (readout == null)
             return;
 
@@ -369,7 +369,7 @@ internal static class ThreatReadout
     private static void Clear(string element)
     {
         // Peek, not Element: blanking an empty readout must not build one.
-        Text readout = Overlay.Peek(element);
+        TMPro.TextMeshProUGUI readout = Overlay.Peek(element);
         if (readout != null && readout.text.Length > 0)
             readout.text = string.Empty;
     }

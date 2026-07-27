@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using HarmonyLib;
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace RattenHUD;
 
@@ -40,7 +40,7 @@ internal static class ContactGlyphs
 
     private sealed class Glyph
     {
-        public Text Text;
+        public TextMeshProUGUI Text;
         public string Content;
         public int Frame;
     }
@@ -60,7 +60,7 @@ internal static class ContactGlyphs
     /// Called after the game has moved every marker for this frame, so the
     /// symbols sit on positions that are already up to date.
     /// </summary>
-    public static void Update(CombatHUD hud, List<HUDUnitMarker> markers, Text template)
+    public static void Update(CombatHUD hud, List<HUDUnitMarker> markers, TextMeshProUGUI template)
     {
         if (!Plugin.On(Plugin.ContactGlyphs))
         {
@@ -115,7 +115,7 @@ internal static class ContactGlyphs
 
             if (glyph == null || glyph.Text == null)
             {
-                Text text = Build(template, layer);
+                TextMeshProUGUI text = Build(template, layer);
                 if (text == null)
                     continue;
 
@@ -205,7 +205,7 @@ internal static class ContactGlyphs
     /// see, so a scale that looks right is found by eye. This prints what the
     /// eye is actually looking at, which beats another round of guessing.
     /// </summary>
-    private static void LogSizeOnce(RectTransform icon, Text template, float scale, int size)
+    private static void LogSizeOnce(RectTransform icon, TextMeshProUGUI template, float scale, int size)
     {
         if (loggedSize)
             return;
@@ -221,7 +221,7 @@ internal static class ContactGlyphs
     /// Text size for a symbol that has to sit inside this marker, in the units
     /// the icon's own size is measured in.
     /// </summary>
-    private static int GlyphSize(RectTransform icon, Text template, float scale)
+    private static int GlyphSize(RectTransform icon, TextMeshProUGUI template, float scale)
     {
         float span = icon.sizeDelta.x * icon.localScale.x;
         // A marker that reports no size of its own still has to get a symbol
@@ -280,12 +280,12 @@ internal static class ContactGlyphs
 
     /// <summary>
     /// Clones the game's own target readout. Cloning a live HUD label rather
-    /// than building a Text from nothing inherits the HUD font, material and
+    /// than building a label from nothing inherits the HUD font, material and
     /// projection, and the target block is the nearest template there is: it is
     /// the one label the game itself anchors to a marker, so the copy lands in
     /// the coordinate space the markers are positioned in.
     /// </summary>
-    private static Text Build(Text template, Transform layer)
+    private static TextMeshProUGUI Build(TextMeshProUGUI template, Transform layer)
     {
         GameObject clone = Object.Instantiate(template.gameObject, layer);
         clone.name = "RattenHUDContactGlyph";
@@ -294,7 +294,7 @@ internal static class ContactGlyphs
         foreach (HUDApp driver in clone.GetComponents<HUDApp>())
             Object.Destroy(driver);
 
-        Text text = clone.GetComponent<Text>();
+        TextMeshProUGUI text = clone.GetComponent<TextMeshProUGUI>();
         if (text == null)
         {
             Object.Destroy(clone);
@@ -302,11 +302,11 @@ internal static class ContactGlyphs
         }
 
         text.text = string.Empty;
-        text.alignment = TextAnchor.MiddleCenter;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
-        text.verticalOverflow = VerticalWrapMode.Overflow;
+        text.alignment = TextAlignmentOptions.Center;
+        text.enableWordWrapping = false;
+        text.overflowMode = TextOverflowModes.Overflow;
         text.raycastTarget = false;
-        text.supportRichText = false;
+        text.richText = false;
 
         RectTransform rect = text.rectTransform;
         rect.pivot = new Vector2(0.5f, 0.5f);
@@ -342,7 +342,7 @@ internal static class ContactGlyphPatches
     private static void UpdateMarkers(
         CombatHUD __instance,
         List<HUDUnitMarker> ___markers,
-        Text ___targetInfo) =>
+        TextMeshProUGUI ___targetInfo) =>
         ContactGlyphs.Update(__instance, ___markers, ___targetInfo);
 
     [HarmonyPrefix]

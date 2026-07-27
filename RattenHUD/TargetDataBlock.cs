@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 
 namespace RattenHUD;
 
@@ -20,7 +20,7 @@ internal static class TargetDataBlockPatch
         bool __result,
         List<Unit> ___targetList,
         Aircraft ___aircraft,
-        Text ___targetInfo)
+        TextMeshProUGUI ___targetInfo)
     {
         // The game returns false when there is nothing to show, and in that
         // case has not written a readout for us to extend.

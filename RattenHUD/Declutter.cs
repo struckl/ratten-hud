@@ -107,7 +107,7 @@ internal static class ObjectiveLabelPatch
 {
     private static void Postfix(
         MissionPosition.PositionResult result,
-        UnityEngine.UI.Text ___objectiveInfo)
+        TMPro.TextMeshProUGUI ___objectiveInfo)
     {
         if (___objectiveInfo == null || !Plugin.Enabled.Value)
             return;

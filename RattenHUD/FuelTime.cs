@@ -1,6 +1,6 @@
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.UI;
+using TMPro;
 
 namespace RattenHUD;
 
@@ -21,7 +21,7 @@ internal static class FuelTime
 
     private static float sampleIntervalSeconds;
 
-    private static Text fuelTimeLabel;
+    private static TextMeshProUGUI fuelTimeLabel;
     private static float labelReadyTime = float.PositiveInfinity;
     private static float lastFuelLevel;
     private static float lastSampleTime;
@@ -42,7 +42,7 @@ internal static class FuelTime
         labelReadyTime = Time.timeSinceLevelLoad + LabelCreationDelaySeconds;
     }
 
-    public static void OnGaugeRefreshed(FuelGauge gauge, Aircraft aircraft, Text fuelLabel)
+    public static void OnGaugeRefreshed(FuelGauge gauge, Aircraft aircraft, TextMeshProUGUI fuelLabel)
     {
         if (aircraft == null)
             return;
@@ -64,7 +64,7 @@ internal static class FuelTime
             : $"({Mathf.FloorToInt(secondsRemaining / 60f)}m)";
     }
 
-    private static bool TryCreateLabel(FuelGauge gauge, Text fuelLabel)
+    private static bool TryCreateLabel(FuelGauge gauge, TextMeshProUGUI fuelLabel)
     {
         if (Time.timeSinceLevelLoad < labelReadyTime || fuelLabel == null)
             return false;
@@ -83,7 +83,7 @@ internal static class FuelTime
             rectTransform.anchoredPosition += new Vector2(0f, LabelVerticalOffset);
         }
 
-        fuelTimeLabel = labelObject.GetComponent<Text>();
+        fuelTimeLabel = labelObject.GetComponent<TextMeshProUGUI>();
         if (fuelTimeLabel == null)
         {
             Plugin.Logger.LogError("Fuel time label has no Text component; fuel readout disabled.");
@@ -109,7 +109,7 @@ internal static class FuelGaugePatches
 
     [HarmonyPostfix]
     [HarmonyPatch("Refresh")]
-    private static void Refresh(FuelGauge __instance, Aircraft ___aircraft, Text ___fuelLabel)
+    private static void Refresh(FuelGauge __instance, Aircraft ___aircraft, TextMeshProUGUI ___fuelLabel)
     {
         if (Plugin.On(Plugin.FuelTimeReadout))
             FuelTime.OnGaugeRefreshed(__instance, ___aircraft, ___fuelLabel);

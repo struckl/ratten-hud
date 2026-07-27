@@ -10,7 +10,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string Guid = "dev.sewerlabs.rattenhud";
     public const string Name = "Ratten HUD";
-    public const string Version = "2.2.0";
+    public const string Version = "2.2.1";
 
     internal static new ManualLogSource Logger;
 
