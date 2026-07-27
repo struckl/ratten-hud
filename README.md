@@ -1,4 +1,4 @@
-# Ratten HUD
+# Ratten HUD | Nuclear Option
 
 Combat HUD readouts for
 [Nuclear Option](https://store.steampowered.com/app/2168680/Nuclear_Option/).
@@ -293,7 +293,8 @@ they move and scale with their hosts rather than having entries of their own.
 
 #### The defaults
 
-The table defaults to `Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false`:
+The table defaults to
+`Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false;Altitude.HMD:0,0,1,false`:
 
 - `Climbrate:0,40` is the old MKMods `ClimbRateVerticalOffset`, which now
   lives here — the stock climb rate readout sits low enough to collide with
@@ -304,6 +305,8 @@ The table defaults to `Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false`:
 - `Bearing.HMD:0,0,1,false` hides the screen-fixed heading box at the top of
   the screen, which duplicates the heading already shown under the compass
   tape.
+- `Altitude.HMD:0,0,1,false` hides the screen-fixed altitude box for the same
+  reason: the altitude block on the glass already shows it.
 
 ## Configuration
 
@@ -328,7 +331,7 @@ mod` in `1. General` is the master switch for everything at once.
 | 5. Flight info | `Fuel time readout` | `true` |
 | 5. Flight info | `Fuel check interval (seconds)` | `10` |
 | 6. HUD layout | `Enable custom layout` | `true` |
-| 6. HUD layout | `Element layout` | `Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false` |
+| 6. HUD layout | `Element layout` | `Climbrate:0,40;Altitude:0,28;Bearing.HMD:0,0,1,false;Altitude.HMD:0,0,1,false` |
 | 7. Declutter | `Objective label` | `Hidden` |
 | 7. Declutter | `Hide chosen unit markers` | `true` |
 | 7. Declutter | `Hidden unit types` | `pilot` |
