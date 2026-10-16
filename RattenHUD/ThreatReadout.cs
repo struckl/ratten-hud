@@ -382,10 +382,12 @@ internal static class ThreatReadout
 [HarmonyPatch(typeof(RadarWarning), "RadarWarning_OnRadarWarning")]
 internal static class RadarWarningSweepPatch
 {
-    private static void Prefix(Aircraft.OnRadarWarning radarSource)
+    // Harmony binds by parameter name, so this has to match the game's own:
+    // "source" now, "radarSource" in older builds.
+    private static void Prefix(Aircraft.OnRadarWarning source)
     {
-        if (Plugin.On(Plugin.RadarTags) && radarSource.detected)
-            ThreatReadout.OnSweep(radarSource.emitter, radarSource.isTarget);
+        if (Plugin.On(Plugin.RadarTags) && source.detected)
+            ThreatReadout.OnSweep(source.emitter, source.isTarget);
     }
 }
 
