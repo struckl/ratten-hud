@@ -388,6 +388,7 @@ dotnet build -c Release -p:GameDirectory="D:\SteamLibrary\steamapps\common\Nucle
 Requires [BepInEx 5](https://github.com/BepInEx/BepInEx). Drop the `RattenHUD`
 folder into `BepInEx/plugins`.
 
----
 
-HOSTED IN THE SEWERS · POWERED BY CHEESE & CLAUDE
+## License
+
+[R.A.T.S. Source License](LICENSE): read it, fork it, send fixes; no re-uploads, no reuse in other projects. Releases before 2026-11-18 stay MIT.
